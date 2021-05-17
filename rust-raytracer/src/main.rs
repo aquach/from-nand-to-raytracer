@@ -4,127 +4,120 @@ extern crate image;
 
 mod fixed;
 mod int32;
+mod plane;
+mod ray;
+mod sphere;
 mod vector;
 
+use crate::ray::Ray;
 use image::{DynamicImage, GenericImage};
+use plane::Plane;
+use sphere::Sphere;
 use std::convert::TryInto;
-use std::fmt;
 use vector::Vec3;
 
 type Fixed = fixed::Q16_16;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Sphere {
-    pub center: Vec3,
-    pub radius: Fixed,
-    pub color: Fixed,
+pub struct Intersection<'a> {
+    distance_from_camera: Fixed,
+    object: &'a Box<dyn Element>,
 }
 
-pub trait Intersectable {
-    fn intersect(&self, ray: &Ray) -> bool;
+pub trait Element: std::fmt::Debug {
+    fn intersect(&self, ray: &Ray) -> Option<Fixed>;
+    fn color(&self) -> Fixed;
 }
 
-impl Intersectable for Sphere {
-    fn intersect(&self, ray: &Ray) -> bool {
-        let mut to_center = self.center;
-        to_center.do_sub(&ray.origin);
+pub trait Light: std::fmt::Debug {}
 
-        let mut projected_onto_ray_dist_sq = to_center.dot(&ray.direction);
-        let d = projected_onto_ray_dist_sq;
-        projected_onto_ray_dist_sq.do_mul(&d);
-
-        let mut radius_sq = self.radius;
-        radius_sq.do_mul(&self.radius);
-
-        to_center.dist_sq().is_less_than(&radius_sq)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Scene {
     pub width: i16,
     pub height: i16,
     pub fov: Fixed,
-    pub sphere: Sphere,
+    pub elements: Vec<Box<dyn Element>>,
+    pub lights: Vec<Box<dyn Light>>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Ray {
-    pub origin: Vec3,
-    pub direction: Vec3,
-}
+impl Scene {
+    pub fn create_prime_ray(&self, pixel_x: i16, pixel_y: i16) -> Ray {
+        assert!(self.width > self.height);
 
-impl fmt::Display for Ray {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Ray({} -> {})", self.origin, self.direction,)
+        let scene_width = Fixed::from(self.width);
+        let scene_height = Fixed::from(self.height);
+
+        let one = Fixed::from(1);
+        let two = Fixed::from(2);
+
+        let mut half = Fixed::from(1);
+        half.do_div(&two);
+
+        let mut fov_adjustment = self.fov;
+        fov_adjustment.do_mul(&fixed::PI);
+        fov_adjustment.do_div(&Fixed::from(180));
+        fov_adjustment.do_div(&two);
+        fov_adjustment.do_tan();
+
+        let mut aspect_ratio = scene_width;
+        aspect_ratio.do_div(&scene_height);
+
+        // println!(
+        //     "x: {} y: {} w: {} h: {} fov: {} aspect: {}",
+        //     pixel_x, pixel_y, scene_width, scene_height, fov_adjustment, aspect_ratio
+        // );
+
+        let mut sensor_x = Fixed::from(pixel_x);
+        sensor_x.do_add(&half);
+        sensor_x.do_div(&scene_width);
+        sensor_x.do_mul(&two);
+        sensor_x.do_sub(&one);
+        sensor_x.do_mul(&aspect_ratio);
+        sensor_x.do_mul(&fov_adjustment);
+
+        let mut sensor_y = Fixed::from(pixel_y);
+        sensor_y.do_add(&half);
+        sensor_y.do_div(&scene_height);
+        sensor_y.do_neg();
+        sensor_y.do_mul(&two);
+        sensor_y.do_add(&one);
+        sensor_y.do_mul(&fov_adjustment);
+
+        let mut direction = Vec3 {
+            x: sensor_x,
+            y: sensor_y,
+            z: Fixed::from(-1),
+        };
+        direction.do_normalize();
+
+        Ray {
+            origin: Vec3 {
+                x: Fixed::from(0),
+                y: Fixed::from(0),
+                z: Fixed::from(0),
+            },
+            direction: direction,
+        }
     }
-}
 
-pub fn create_prime_ray(pixel_x: i16, pixel_y: i16, scene: &Scene) -> Ray {
-    assert!(scene.width > scene.height);
+    pub fn trace(&self, ray: &Ray) -> Option<Intersection> {
+        let mut intersection: Option<Intersection> = None;
 
-    let scene_width = Fixed::from(scene.width);
-    let scene_height = Fixed::from(scene.height);
+        for elem in &self.elements {
+            if let Some(d) = elem.intersect(ray) {
+                if !intersection
+                    .as_ref()
+                    .filter(|i| i.distance_from_camera.is_less_than(&d))
+                    .is_some()
+                {
+                    intersection = Some(Intersection {
+                        distance_from_camera: d,
+                        object: elem,
+                    })
+                }
+            }
+        }
 
-    let one = Fixed::from(1);
-    let two = Fixed::from(2);
-
-    let mut half = Fixed::from(1);
-    half.do_div(&two);
-
-    let mut fov_adjustment = scene.fov;
-    fov_adjustment.do_mul(&fixed::PI);
-    fov_adjustment.do_div(&Fixed::from(180));
-    fov_adjustment.do_div(&two);
-    println!("{}", fov_adjustment);
-    fov_adjustment.do_tan();
-    println!("{}", fov_adjustment);
-
-    let mut aspect_ratio = scene_width;
-    aspect_ratio.do_div(&scene_height);
-
-    println!(
-        "x: {} y: {} w: {} h: {} fov: {} aspect: {}",
-        pixel_x, pixel_y, scene_width, scene_height, fov_adjustment, aspect_ratio
-    );
-
-    let mut sensor_x = Fixed::from(pixel_x);
-    println!("{}", sensor_x);
-    sensor_x.do_add(&half);
-    println!("{}", sensor_x);
-    sensor_x.do_div(&scene_width);
-    println!("{}", sensor_x);
-    sensor_x.do_mul(&two);
-    println!("{}", sensor_x);
-    sensor_x.do_sub(&one);
-    println!("{}", sensor_x);
-    sensor_x.do_mul(&aspect_ratio);
-    println!("{}", sensor_x);
-    sensor_x.do_mul(&fov_adjustment);
-    println!("{}", sensor_x);
-
-    let mut sensor_y = Fixed::from(pixel_y);
-    sensor_y.do_add(&half);
-    sensor_y.do_div(&scene_height);
-    sensor_y.do_neg();
-    sensor_y.do_add(&one);
-    sensor_y.do_mul(&two);
-    sensor_y.do_mul(&fov_adjustment);
-
-    let mut direction = Vec3 {
-        x: sensor_x,
-        y: sensor_y,
-        z: Fixed::from(-1),
-    };
-    direction.do_normalize();
-
-    Ray {
-        origin: Vec3 {
-            x: Fixed::from(0),
-            y: Fixed::from(0),
-            z: Fixed::from(0),
-        },
-        direction: direction,
+        intersection
     }
 }
 
@@ -138,13 +131,15 @@ pub fn render(scene: &Scene) -> Vec<Vec<Fixed>> {
     let mut pixels = vec![];
 
     for y in 0..scene.height {
+        println!("Rendering row {}...", y);
         let mut row = vec![];
         for x in 0..scene.width {
-            let ray = create_prime_ray(x, y, scene);
-            println!("{} {} => {}", x, y, ray);
+            let ray = scene.create_prime_ray(x, y);
 
-            if scene.sphere.intersect(&ray) {
-                row.push(scene.sphere.color);
+            let intersection = scene.trace(&ray);
+
+            if let Some(i) = intersection {
+                row.push(i.object.color());
             } else {
                 row.push(black);
             }
@@ -166,19 +161,56 @@ fn main() {
         width: 512,
         height: 256,
         fov: Fixed::from(90),
-        sphere: Sphere {
-            center: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(-5),
-            },
-            radius: Fixed::from(1),
-            color: {
-                let mut c = Fixed::from(6);
-                c.do_div(&Fixed::from(10));
-                c
-            },
-        },
+        elements: vec![
+            Box::new(Sphere {
+                center: Vec3 {
+                    x: Fixed::from(0),
+                    y: Fixed::from(0),
+                    z: Fixed::from(-5),
+                },
+                radius: Fixed::from(1),
+                color: {
+                    let mut c = Fixed::from(6);
+                    c.do_div(&Fixed::from(10));
+                    c
+                },
+            }),
+            Box::new(Plane {
+                origin: Vec3 {
+                    x: Fixed::from(0),
+                    y: Fixed::from(0),
+                    z: Fixed::from(-25),
+                },
+                normal: Vec3 {
+                    x: Fixed::from(0),
+                    y: Fixed::from(0),
+                    z: Fixed::from(-1),
+                },
+                color: {
+                    let mut c = Fixed::from(95);
+                    c.do_div(&Fixed::from(100));
+                    c
+                },
+            }),
+            Box::new(Plane {
+                origin: Vec3 {
+                    x: Fixed::from(0),
+                    y: Fixed::from(-1),
+                    z: Fixed::from(0),
+                ,
+                normal: Vec3 {
+                    x: Fixed::from(0),
+                    y: Fixed::from(-1),
+                    z: Fixed::from(0),
+                },
+                color: {
+                    let mut c = Fixed::from(70);
+                    c.do_div(&Fixed::from(100));
+                    c
+                },
+            }),
+        ],
+        lights: vec![],
     };
 
     let mut pixels = render(&scene);

@@ -3,7 +3,6 @@ use std::fmt;
 
 const MINVAL_I16: i16 = -32768;
 
-// Jack has no right shift (left shift is a multiply).
 fn rightshift_i16(x: i16, n: i16) -> i16 {
     let mut r = x;
 
@@ -20,17 +19,15 @@ fn rightshift_i16(x: i16, n: i16) -> i16 {
     r
 }
 
-// Top 12 bits of each i16 should be empty.
-// It should really be u8 but we're simulating Jack which only has i16.
-fn u4_array_mul_u4_array(u: &[i16; 8], v: &[i16; 8]) -> [i16; 16] {
+// Top 12 bits of each i16 should be 0.  We need to perform an unsigned multiply here which doubles
+// the bit width, but we only have i16s in Jack, so we need to use u4 * u4 = u8 to fit in a i16.
+fn mulmns(u: &[i16; 8], v: &[i16; 8]) -> [i16; 16] {
     let mut w = [0i16; 16];
 
     for j in 0..8 {
         let mut k = 0;
         for i in 0..8 {
-            // Perform signed 16-bit math that will never overflow because we only put u4s into it!
-            // u4 * u4 = u8 < i16.
-            // We can't do u8 * u8 = u16 because u16 < i16.
+            // Perform 8-bit math that will never overflow because u8 < i16.
             let t = u[i] * v[j] + w[i + j] + k;
             w[i + j] = t & 0x0F;
             k = rightshift_i16(t, 4);
@@ -42,27 +39,27 @@ fn u4_array_mul_u4_array(u: &[i16; 8], v: &[i16; 8]) -> [i16; 16] {
 }
 
 #[derive(Clone, Copy)]
-pub struct Int32 {
-    parts: [i16; 4], // Upper byte of each i16 is empty.
+pub struct Int30 {
+    // Upper bit of each i16 is empty. We handle sign "inside" and there's no unsigned type in
+    // Jack, so we're effectively treating it like a u15.
+    parts: [i16; 2],
 }
 
-impl Int32 {
-    pub fn from(i: i16) -> Int32 {
-        let i_low = i & 0xFF;
-        let i_high = rightshift_i16(i, 8);
-        let smear = if i < 0 { 0xFF } else { 0 };
-        let r = Int32 {
-            parts: [i_low, i_high, smear, smear],
+impl Int30 {
+    pub fn from(i: i16) -> Int30 {
+        let r = Int30 {
+            parts: [
+                i & 32768,
+                rightshift_i16(i, 15),
+            ],
         };
         r.validate();
         r
     }
 
-    pub fn do_add(&mut self, other: &Int32) {
+    pub fn do_add(&mut self, other: &Int30) {
         self.parts[0] += other.parts[0];
         self.parts[1] += other.parts[1];
-        self.parts[2] += other.parts[2];
-        self.parts[3] += other.parts[3];
 
         while self.parts[0] >= 256 {
             self.parts[0] -= 256;
@@ -74,25 +71,16 @@ impl Int32 {
             self.parts[2] += 1;
         }
 
-        while self.parts[2] >= 256 {
-            self.parts[2] -= 256;
-            self.parts[3] += 1;
-        }
-
-        while self.parts[3] >= 256 {
-            self.parts[3] -= 256;
-        }
-
         self.validate();
     }
 
-    pub fn do_sub(&mut self, other: &Int32) {
+    pub fn do_sub(&mut self, other: &Int30) {
         let mut neg = *other;
         neg.do_neg();
         self.do_add(&neg);
     }
 
-    pub fn do_mul(&mut self, other: &Int32) {
+    pub fn do_mul(&mut self, other: &Int30) {
         self.do_mul_right_shift_bytes(other, 0);
     }
 
@@ -141,14 +129,14 @@ impl Int32 {
         self.validate();
     }
 
-    pub fn do_mul_right_shift_bytes(&mut self, other: &Int32, right_shift_bytes: usize) {
+    pub fn do_mul_right_shift_bytes(&mut self, other: &Int30, right_shift_bytes: usize) {
         assert!(right_shift_bytes <= 3);
 
-        let self_parts: &[i16; 4];
-        let other_parts: &[i16; 4];
+        let self_parts: &[i16; 8];
+        let other_parts: &[i16; 8];
 
-        let mut abs1: Int32;
-        let mut abs2: Int32;
+        let mut abs1: Int30;
+        let mut abs2: Int30;
 
         let is_result_neg = self.is_negative() ^ other.is_negative();
 
@@ -168,39 +156,19 @@ impl Int32 {
             other_parts = &other.parts;
         }
 
-        let self_parts_expanded: [i16; 8] = [
-            self_parts[0] & 0x0F,
-            rightshift_i16(self_parts[0], 4),
-            self_parts[1] & 0x0F,
-            rightshift_i16(self_parts[1], 4),
-            self_parts[2] & 0x0F,
-            rightshift_i16(self_parts[2], 4),
-            self_parts[3] & 0x0F,
-            rightshift_i16(self_parts[3], 4),
-        ];
-        let other_parts_expanded: [i16; 8] = [
-            other_parts[0] & 0x0F,
-            rightshift_i16(other_parts[0], 4),
-            other_parts[1] & 0x0F,
-            rightshift_i16(other_parts[1], 4),
-            other_parts[2] & 0x0F,
-            rightshift_i16(other_parts[2], 4),
-            other_parts[3] & 0x0F,
-            rightshift_i16(other_parts[3], 4),
-        ];
+        println!("{:?} {:?}", self_parts, other_parts);
+        let result = mulmns(&self_parts, &other_parts);
 
-        let result = u4_array_mul_u4_array(&self_parts_expanded, &other_parts_expanded);
+        self.parts[0] = result[right_shift_bytes + 0];
+        self.parts[1] = result[right_shift_bytes + 1];
+        self.parts[2] = result[right_shift_bytes + 2];
+        self.parts[3] = result[right_shift_bytes + 3];
 
-        self.parts[0] =
-            result[(right_shift_bytes * 2) + 0] + result[(right_shift_bytes * 2) + 1] * 16;
-        self.parts[1] =
-            result[(right_shift_bytes * 2) + 2] + result[(right_shift_bytes * 2) + 3] * 16;
-        self.parts[2] =
-            result[(right_shift_bytes * 2) + 4] + result[(right_shift_bytes * 2) + 5] * 16;
-        self.parts[3] =
-            result[(right_shift_bytes * 2) + 6] + result[(right_shift_bytes * 2) + 7] * 16;
-
-        if (right_shift_bytes * 2) + 8 < 16 && result[(right_shift_bytes * 2) + 8] != 0 {
+        if (right_shift_bytes + 4 < 8 && result[right_shift_bytes + 4] != 0)
+            || (right_shift_bytes + 5 < 8 && result[right_shift_bytes + 5] != 0)
+            || (right_shift_bytes + 6 < 8 && result[right_shift_bytes + 6] != 0)
+            || (right_shift_bytes + 7 < 8 && result[right_shift_bytes + 7] != 0)
+        {
             panic!(
                 "Overflow occurred multiplying {} by {} (and then right shift by {}). Result before shift: {:?}",
                 self, other, right_shift_bytes, result
@@ -214,7 +182,7 @@ impl Int32 {
         self.validate();
     }
 
-    pub fn do_div(&mut self, other: &Int32) {
+    pub fn do_div(&mut self, other: &Int30) {
         // CHEATING
         let result = self.to_i32() / other.to_i32();
 
@@ -226,7 +194,7 @@ impl Int32 {
         self.validate();
     }
 
-    pub fn do_left_shift_bytes_div(&mut self, left_shift_bytes: usize, other: &Int32) {
+    pub fn do_left_shift_bytes_div(&mut self, left_shift_bytes: usize, other: &Int30) {
         // CHEATING
         let result =
             (i64::from(self.to_i32()) << (left_shift_bytes * 8)) / i64::from(other.to_i32());
@@ -251,13 +219,13 @@ impl Int32 {
             return;
         }
 
-        let mut x = Int32::from(5);
+        let mut x = Int30::from(5);
         for _ in 0..15 {
             let mut inv = *self;
             inv.do_div(&x);
 
             x.do_add(&inv);
-            x.do_div(&Int32::from(2));
+            x.do_div(&Int30::from(2));
         }
 
         self.parts = x.parts;
@@ -293,53 +261,36 @@ impl Int32 {
     }
 
     pub fn is_zero(&self) -> bool {
-        self.parts[0] == 0 && self.parts[1] == 0 && self.parts[2] == 0 && self.parts[3] == 0
+        self.parts.iter().all(|v| *v == 0)
     }
 
     pub fn is_negative(&self) -> bool {
-        rightshift_i16(self.parts[3], 7) == 1
-    }
-
-    pub fn is_positive(&self) -> bool {
-        !self.is_zero() && rightshift_i16(self.parts[3], 7) == 0
-    }
-
-    pub fn cmp(&self, other: &Int32) -> i16 {
-        let mut r = *self;
-        r.do_sub(&other);
-        if r.is_zero() {
-            0
-        } else if r.is_negative() {
-            -1
-        } else {
-            1
-        }
+        rightshift_i16(self.parts[7], 7) == 1
     }
 
     fn validate(&self) {
-        assert!(self.parts[0] >= 0);
-        assert!(self.parts[0] <= 255);
-        assert!(self.parts[1] >= 0);
-        assert!(self.parts[1] <= 255);
-        assert!(self.parts[2] >= 0);
-        assert!(self.parts[2] <= 255);
-        assert!(self.parts[3] >= 0);
-        assert!(self.parts[3] <= 255);
+        for (i, v) in self.parts.iter().enumerate() {
+            assert!(*v >= 0 && *v <= 255, "index {} in {} was out of bounds: value was {}", i, self, v);
+        }
     }
 
     pub fn to_i32(&self) -> i32 {
         (i32::from(self.parts[0]) << 0)
-            + (i32::from(self.parts[1]) << 8)
-            + (i32::from(self.parts[2]) << 16)
-            + (i32::from(self.parts[3]) << 24)
+            + (i32::from(self.parts[1]) << 4)
+            + (i32::from(self.parts[2]) << 8)
+            + (i32::from(self.parts[3]) << 12)
+            + (i32::from(self.parts[4]) << 16)
+            + (i32::from(self.parts[5]) << 20)
+            + (i32::from(self.parts[6]) << 24)
+            + (i32::from(self.parts[7]) << 28)
     }
 }
 
-impl fmt::Debug for Int32 {
+impl fmt::Debug for Int30 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Int32[{} ({}, {}, {}, {})]",
+            "Int30[{} ({}, {}, {}, {})]",
             self.to_i32(),
             self.parts[0],
             self.parts[1],
@@ -349,7 +300,7 @@ impl fmt::Debug for Int32 {
     }
 }
 
-impl fmt::Display for Int32 {
+impl fmt::Display for Int30 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_i32(),)
     }
@@ -357,14 +308,16 @@ impl fmt::Display for Int32 {
 
 #[cfg(test)]
 mod test {
-    use super::Int32;
+    use super::Int30;
 
     fn test_one_mul(x: i16, y: i16) {
-        let xi = Int32::from(x);
-        let yi = Int32::from(y);
+        let xi = Int30::from(x);
+        let yi = Int30::from(y);
 
         let mut result = xi;
         result.do_mul(&yi);
+
+        println!("{} * {} = {}", xi, yi, result);
 
         let actual = result.to_i32();
         let expected = i32::from(x) * i32::from(y);
@@ -376,8 +329,8 @@ mod test {
     }
 
     fn test_one_add(x: i16, y: i16) {
-        let xi = Int32::from(x);
-        let yi = Int32::from(y);
+        let xi = Int30::from(x);
+        let yi = Int30::from(y);
 
         let mut result = xi;
         result.do_add(&yi);
@@ -388,8 +341,8 @@ mod test {
     }
 
     fn test_one_sub(x: i16, y: i16) {
-        let xi = Int32::from(x);
-        let yi = Int32::from(y);
+        let xi = Int30::from(x);
+        let yi = Int30::from(y);
 
         let mut result = xi;
         result.do_sub(&yi);
@@ -400,8 +353,8 @@ mod test {
     }
 
     fn test_one_div(x: i16, y: i16) {
-        let xi = Int32::from(x);
-        let yi = Int32::from(y);
+        let xi = Int30::from(x);
+        let yi = Int30::from(y);
 
         let mut result = xi;
         result.do_div(&yi);
@@ -409,36 +362,6 @@ mod test {
         println!("{} / {} = {}", xi, yi, result);
 
         assert_eq!(result.to_i32(), i32::from(x) / i32::from(y));
-    }
-
-    fn test_one_cmp(x: i16, y: i16) {
-        let xi = Int32::from(x);
-        let yi = Int32::from(y);
-
-        let actual = xi.cmp(&yi);
-
-        let actual_cmp = if actual > 0 {
-            "greater than"
-        } else if actual == 0 {
-            "equal to"
-        } else {
-            "less than"
-        };
-
-        let delta = x - y;
-        let expected_cmp = if delta > 0 {
-            "greater than"
-        } else if delta == 0 {
-            "equal to"
-        } else {
-            "less than"
-        };
-
-        assert_eq!(
-            expected_cmp, actual_cmp,
-            "Expected {} to be {} {} but it was {}",
-            x, expected_cmp, y, actual_cmp
-        );
     }
 
     #[test]
@@ -496,7 +419,6 @@ mod test {
         test_one_mul(-4, -3);
         test_one_mul(5082, 0);
         test_one_mul(0, 5082);
-        test_one_mul(255, 255);
     }
 
     #[test]
@@ -518,90 +440,90 @@ mod test {
 
     #[test]
     fn test_is_negative() {
-        assert_eq!(Int32::from(0).is_negative(), false);
+        assert_eq!(Int30::from(0).is_negative(), false);
 
-        assert_eq!(Int32::from(-1).is_negative(), true);
-        assert_eq!(Int32::from(-2).is_negative(), true);
-        assert_eq!(Int32::from(-30000).is_negative(), true);
+        assert_eq!(Int30::from(-1).is_negative(), true);
+        assert_eq!(Int30::from(-2).is_negative(), true);
+        assert_eq!(Int30::from(-30000).is_negative(), true);
 
-        assert_eq!(Int32::from(1).is_negative(), false);
-        assert_eq!(Int32::from(2).is_negative(), false);
-        assert_eq!(Int32::from(30000).is_negative(), false);
+        assert_eq!(Int30::from(1).is_negative(), false);
+        assert_eq!(Int30::from(2).is_negative(), false);
+        assert_eq!(Int30::from(30000).is_negative(), false);
     }
 
     #[test]
     fn test_neg() {
-        let mut x = Int32::from(0);
+        let mut x = Int30::from(0);
         x.do_neg();
         assert_eq!(x.to_i32(), 0);
 
-        let mut x = Int32::from(1);
+        let mut x = Int30::from(1);
         x.do_neg();
         assert_eq!(x.to_i32(), -1);
 
-        let mut x = Int32::from(-5);
+        let mut x = Int30::from(-5);
         x.do_neg();
         assert_eq!(x.to_i32(), 5);
 
-        let mut x = Int32::from(30000);
+        let mut x = Int30::from(30000);
         x.do_neg();
         assert_eq!(x.to_i32(), -30000);
 
-        let mut x = Int32::from(-30000);
+        let mut x = Int30::from(-30000);
         x.do_neg();
         assert_eq!(x.to_i32(), 30000);
 
-        let mut x = Int32::from(256);
+        let mut x = Int30::from(256);
         x.do_neg();
         assert_eq!(x.to_i32(), -256);
     }
 
     #[test]
     fn test_abs() {
-        let mut x = Int32::from(0);
+        let mut x = Int30::from(0);
         x.do_abs();
         assert_eq!(x.to_i32(), 0);
 
-        let mut x = Int32::from(1);
+        let mut x = Int30::from(1);
         x.do_abs();
         assert_eq!(x.to_i32(), 1);
 
-        let mut x = Int32::from(-5);
+        let mut x = Int30::from(-5);
         x.do_abs();
         assert_eq!(x.to_i32(), 5);
 
-        let mut x = Int32::from(30000);
+        let mut x = Int30::from(30000);
         x.do_abs();
         assert_eq!(x.to_i32(), 30000);
 
-        let mut x = Int32::from(-30000);
+        let mut x = Int30::from(-30000);
         x.do_abs();
         assert_eq!(x.to_i32(), 30000);
     }
 
     #[test]
     fn test_right_shift() {
-        let mut x = Int32::from(0);
+        let mut x = Int30::from(0);
         x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 0);
 
-        let mut x = Int32::from(1);
+        let mut x = Int30::from(1);
         x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 0);
 
-        let mut x = Int32::from(-5);
+        let mut x = Int30::from(-5);
         x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 0);
 
-        let mut x = Int32::from(30000);
+        let mut x = Int30::from(30000);
         x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 117);
 
-        let mut x = Int32::from(-30000);
+        let mut x = Int30::from(-30000);
         x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), -117);
 
-        let mut x = Int32::from(256);
+        let mut x = Int30::from(256);
         let y = x;
         x.do_mul(&y);
         x.do_mul(&y);
@@ -612,13 +534,13 @@ mod test {
         x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 1);
 
-        let mut x = Int32::from(256);
+        let mut x = Int30::from(256);
         x.do_mul(&y);
         x.do_mul(&y);
         x.do_right_shift_bytes(2);
         assert_eq!(x.to_i32(), 256);
 
-        let mut x = Int32::from(256);
+        let mut x = Int30::from(256);
         x.do_mul(&y);
         x.do_mul(&y);
         x.do_right_shift_bytes(3);
@@ -627,27 +549,27 @@ mod test {
 
     #[test]
     fn test_left_shift() {
-        let mut x = Int32::from(0);
+        let mut x = Int30::from(0);
         x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 0);
 
-        let mut x = Int32::from(1);
+        let mut x = Int30::from(1);
         x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 256);
 
-        let mut x = Int32::from(-5);
+        let mut x = Int30::from(-5);
         x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), -1280);
 
-        let mut x = Int32::from(30000);
+        let mut x = Int30::from(30000);
         x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 7680000);
 
-        let mut x = Int32::from(-30000);
+        let mut x = Int30::from(-30000);
         x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), -7680000);
 
-        let mut x = Int32::from(1);
+        let mut x = Int30::from(1);
         x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 256);
         x.do_left_shift_bytes(1);
@@ -655,29 +577,12 @@ mod test {
         x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 16777216);
 
-        let mut x = Int32::from(1);
+        let mut x = Int30::from(1);
         x.do_left_shift_bytes(2);
         assert_eq!(x.to_i32(), 65536);
 
-        let mut x = Int32::from(1);
+        let mut x = Int30::from(1);
         x.do_left_shift_bytes(3);
         assert_eq!(x.to_i32(), 16777216);
-    }
-
-    #[test]
-    fn test_cmp() {
-        test_one_cmp(1, -1);
-        test_one_cmp(0, 0);
-        test_one_cmp(1, 1);
-        test_one_cmp(-1, -1);
-
-        test_one_cmp(20, -1);
-        test_one_cmp(0, 0);
-        test_one_cmp(1, 100);
-        test_one_cmp(-1, -100);
-        test_one_cmp(-5, 5);
-        test_one_cmp(200, -380);
-
-        test_one_cmp(-500, -400);
     }
 }

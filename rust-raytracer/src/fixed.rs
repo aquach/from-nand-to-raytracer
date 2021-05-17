@@ -38,6 +38,10 @@ impl Q16_16 {
         self.0.is_negative()
     }
 
+    pub fn is_positive(&self) -> bool {
+        self.0.is_positive()
+    }
+
     pub fn do_add(&mut self, other: &Q16_16) {
         self.0.do_add(&other.0);
     }
@@ -84,9 +88,12 @@ impl Q16_16 {
         self.0.do_mul(&Int32::from(2));
     }
 
+    pub fn cmp(&self, other: &Q16_16) -> i16 {
+        self.0.cmp(&other.0)
+    }
+
     pub fn is_less_than(&self, other: &Q16_16) -> bool {
-        // TODO CHEATING
-        self.to_f64() < other.to_f64()
+        self.0.cmp(&other.0) < 0
     }
 }
 
