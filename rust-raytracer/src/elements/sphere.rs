@@ -50,6 +50,13 @@ impl Element for Sphere {
     fn color(&self) -> Fixed {
         self.color
     }
+
+    fn surface_normal(&self, hit_point: &Vec3) -> Vec3 {
+        let mut n = *hit_point;
+        n.do_sub(&self.center);
+        n.do_normalize();
+        n
+    }
 }
 
 #[cfg(test)]

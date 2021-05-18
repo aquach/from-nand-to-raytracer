@@ -2,17 +2,18 @@
 extern crate lazy_static;
 extern crate image;
 
+mod elements;
 mod fixed;
 mod int32;
-mod plane;
+mod lights;
 mod ray;
-mod sphere;
 mod vector;
 
 use crate::ray::Ray;
+use elements::plane::Plane;
+use elements::sphere::Sphere;
 use image::{DynamicImage, GenericImage};
-use plane::Plane;
-use sphere::Sphere;
+use lights::directional::Directional;
 use std::convert::TryInto;
 use vector::Vec3;
 
@@ -26,9 +27,8 @@ pub struct Intersection<'a> {
 pub trait Element: std::fmt::Debug {
     fn intersect(&self, ray: &Ray) -> Option<Fixed>;
     fn color(&self) -> Fixed;
+    fn surface_normal(&self, hit_point: &Vec3) -> Vec3;
 }
-
-pub trait Light: std::fmt::Debug {}
 
 #[derive(Debug)]
 pub struct Scene {
@@ -36,7 +36,7 @@ pub struct Scene {
     pub height: i16,
     pub fov: Fixed,
     pub elements: Vec<Box<dyn Element>>,
-    pub lights: Vec<Box<dyn Light>>,
+    pub lights: Vec<Directional>,
 }
 
 impl Scene {
@@ -121,31 +121,131 @@ impl Scene {
     }
 }
 
-pub fn gamma_correct(pixels: &mut Vec<Vec<Fixed>>) {}
-
-pub fn dither(pixels: &mut Vec<Vec<Fixed>>) {}
-
 pub fn render(scene: &Scene) -> Vec<Vec<Fixed>> {
     let black = Fixed::from(0);
 
     let mut pixels = vec![];
+    pixels.resize_with(scene.height.try_into().unwrap(), || {
+        let mut row = vec![];
+        row.resize(scene.width.try_into().unwrap(), Fixed::from(0));
+        row
+    });
+
+    let mut dither_pixels = vec![];
+    dither_pixels.resize_with(scene.height.try_into().unwrap(), || {
+        let mut row = vec![];
+        row.resize(scene.width.try_into().unwrap(), Fixed::from(0));
+        row
+    });
 
     for y in 0..scene.height {
-        println!("Rendering row {}...", y);
-        let mut row = vec![];
         for x in 0..scene.width {
             let ray = scene.create_prime_ray(x, y);
 
             let intersection = scene.trace(&ray);
 
-            if let Some(i) = intersection {
-                row.push(i.object.color());
+            let color = if let Some(i) = intersection {
+                let mut hit_point = ray.origin;
+                let mut offset = ray.direction;
+                offset.do_scale(&i.distance_from_camera);
+                hit_point.do_add(&offset);
+
+                let surface_normal = i.object.surface_normal(&hit_point);
+
+                let mut color = Fixed::from(0);
+
+                for light in &scene.lights {
+                    let mut direction_to_light = light.direction;
+                    direction_to_light.do_scale(&Fixed::from(-1));
+
+                    let mut shadow_bias = direction_to_light;
+                    let mut epsilon = Fixed::from(1);
+                    epsilon.do_div(&Fixed::from(50));
+                    shadow_bias.do_scale(&epsilon);
+
+                    let mut origin = hit_point;
+                    origin.do_add(&shadow_bias);
+
+                    let shadow_ray = Ray {
+                        origin: origin,
+                        direction: direction_to_light,
+                    };
+                    let in_light = scene.trace(&shadow_ray).is_none();
+
+                    if in_light {
+                        let mut light_power = surface_normal.dot(&direction_to_light);
+                        if light_power.is_negative() {
+                            light_power = Fixed::from(0);
+                        }
+
+                        let mut added_color = light.color;
+                        added_color.do_mul(&light_power);
+                        added_color.do_div(&fixed::PI);
+                        added_color.do_mul(&i.object.color());
+
+                        color.do_add(&added_color);
+                    }
+                }
+
+                color
             } else {
-                row.push(black);
+                black
+            };
+
+            let xi: usize = x.try_into().unwrap();
+            let yi: usize = y.try_into().unwrap();
+
+            pixels[yi][xi].do_add(&color);
+
+            // Poor math's gamma correction :sob: sqrt() is much easier than 1/2.2
+            pixels[yi][xi].do_sqrt();
+
+            // Bring in the value from the dithering. We want to dither _after_ gamma correction.
+            // Dithered pixels represent gamma-encoded values already.
+            pixels[yi][xi].do_add(&dither_pixels[yi][xi]);
+
+            // Perform dithering.
+            if false {
+                let mut half = Fixed::from(1);
+                half.do_div(&Fixed::from(2));
+
+                let is_white = pixels[yi][xi].cmp(&half) >= 0;
+                let new_color = if is_white {
+                    Fixed::from(1)
+                } else {
+                    Fixed::from(0)
+                };
+                let mut quant_error = pixels[yi][xi];
+                quant_error.do_sub(&new_color);
+                quant_error.do_div(&Fixed::from(16));
+
+                if x + 1 < scene.width {
+                    let mut quant_error_7 = quant_error;
+                    quant_error_7.do_mul(&Fixed::from(7));
+                    dither_pixels[yi][xi + 1].do_add(&quant_error_7);
+                }
+
+                if y + 1 < scene.height {
+                    if x >= 1 {
+                        let mut quant_error_3 = quant_error;
+                        quant_error_3.do_mul(&Fixed::from(3));
+                        dither_pixels[yi + 1][xi - 1].do_add(&quant_error_3);
+                    }
+
+                    let mut quant_error_5 = quant_error;
+                    quant_error_5.do_mul(&Fixed::from(5));
+                    dither_pixels[yi + 1][xi].do_add(&quant_error_5);
+
+                    if x + 1 < scene.width {
+                        dither_pixels[yi + 1][xi + 1].do_add(&quant_error);
+                    }
+                }
+
+                pixels[yi][xi] = new_color;
+                print!("{}", if is_white { " " } else { "@" });
             }
         }
-
-        pixels.push(row);
+        println!("");
     }
 
     pixels
@@ -164,6 +264,23 @@ fn main() {
         elements: vec![
             Box::new(Sphere {
                 center: Vec3 {
+                    x: Fixed::from(-6),
+                    y: Fixed::from(0),
+                    z: Fixed::from(-5),
+                },
+                radius: {
+                    let mut r = Fixed::from(3);
+                    r.do_div(&Fixed::from(2));
+                    r
+                },
+                color: {
+                    let mut c = Fixed::from(8);
+                    c.do_div(&Fixed::from(10));
+                    c
+                },
+            }),
+            Box::new(Sphere {
+                center: Vec3 {
                     x: Fixed::from(0),
                     y: Fixed::from(0),
                     z: Fixed::from(-5),
@@ -171,6 +288,19 @@ fn main() {
                 radius: Fixed::from(1),
                 color: {
                     let mut c = Fixed::from(6);
+                    c.do_div(&Fixed::from(10));
+                    c
+                },
+            }),
+            Box::new(Sphere {
+                center: Vec3 {
+                    x: Fixed::from(2),
+                    y: Fixed::from(0),
+                    z: Fixed::from(-3),
+                },
+                radius: Fixed::from(2),
+                color: {
+                    let mut c = Fixed::from(10);
                     c.do_div(&Fixed::from(10));
                     c
                 },
@@ -186,18 +316,14 @@ fn main() {
                     y: Fixed::from(0),
                     z: Fixed::from(-1),
                 },
-                color: {
-                    let mut c = Fixed::from(95);
-                    c.do_div(&Fixed::from(100));
-                    c
-                },
+                color: Fixed::from(1),
             }),
             Box::new(Plane {
                 origin: Vec3 {
                     x: Fixed::from(0),
-                    y: Fixed::from(-1),
+                    y: Fixed::from(-2),
                     z: Fixed::from(0),
-                ,
+                },
                 normal: Vec3 {
                     x: Fixed::from(0),
                     y: Fixed::from(-1),
@@ -210,12 +336,59 @@ fn main() {
                 },
             }),
         ],
-        lights: vec![],
+        lights: vec![
+            Directional {
+                direction: {
+                    let mut v = Vec3 {
+                        x: Fixed::from(0),
+                        y: Fixed::from(0),
+                        z: Fixed::from(-1),
+                    };
+                    v.do_normalize();
+                    v
+                },
+                color: {
+                    let mut c = Fixed::from(5);
+                    c.do_div(&Fixed::from(100));
+                    c
+                },
+            },
+            Directional {
+                direction: {
+                    let mut v = Vec3 {
+                        x: Fixed::from(-1),
+                        y: Fixed::from(-1),
+                        z: Fixed::from(0),
+                    };
+                    v.do_normalize();
+                    v
+                },
+                color: {
+                    let mut c = Fixed::from(50);
+                    c.do_div(&Fixed::from(100));
+                    c
+                },
+            },
+            Directional {
+                direction: {
+                    let mut v = Vec3 {
+                        x: {
+                            let mut v = Fixed::from(1);
+                            v.do_div(&Fixed::from(2));
+                            v
+                        },
+                        y: Fixed::from(-1),
+                        z: Fixed::from(0),
+                    };
+                    v.do_normalize();
+                    v
+                },
+                color: Fixed::from(1),
+            },
+        ],
     };
 
-    let mut pixels = render(&scene);
-    gamma_correct(&mut pixels);
-    dither(&mut pixels);
+    let pixels = render(&scene);
 
     let mut image = DynamicImage::new_rgb8(
         scene.width.try_into().unwrap(),

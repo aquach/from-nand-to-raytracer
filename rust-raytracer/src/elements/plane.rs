@@ -36,6 +36,12 @@ impl Element for Plane {
     fn color(&self) -> Fixed {
         self.color
     }
+
+    fn surface_normal(&self, _: &Vec3) -> Vec3 {
+        let mut c = self.normal;
+        c.do_scale(&Fixed::from(-1));
+        c
+    }
 }
 
 #[cfg(test)]

@@ -29,6 +29,18 @@ impl Vec3 {
         self.z.do_div(&x);
     }
 
+    pub fn do_add(&mut self, other: &Vec3) {
+        self.x.do_add(&other.x);
+        self.y.do_add(&other.y);
+        self.z.do_add(&other.z);
+    }
+
+    pub fn do_scale(&mut self, s: &Q16_16) {
+        self.x.do_mul(&s);
+        self.y.do_mul(&s);
+        self.z.do_mul(&s);
+    }
+
     pub fn do_sub(&mut self, other: &Vec3) {
         self.x.do_sub(&other.x);
         self.y.do_sub(&other.y);
