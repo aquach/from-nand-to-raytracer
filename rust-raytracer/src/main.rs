@@ -3,8 +3,8 @@ extern crate lazy_static;
 extern crate image;
 
 mod elements;
-mod fixed;
 mod f64;
+mod fixed;
 mod int32;
 mod lights;
 mod ray;
@@ -18,7 +18,7 @@ use lights::directional::Directional;
 use std::convert::TryInto;
 use vector::Vec3;
 
-const DO_DITHERING: bool = false;
+const DO_DITHERING: bool = true;
 
 // pub type Number = f64::Number;
 // use crate::f64::PI;
@@ -32,17 +32,10 @@ pub struct Intersection<'a> {
     object: &'a Box<dyn Element>,
 }
 
-#[derive(Debug)]
-pub struct TextureCoords {
-    pub x: Number,
-    pub y: Number,
-}
-
 pub trait Element: std::fmt::Debug {
     fn intersect(&self, ray: &Ray) -> Option<Number>;
-    fn color(&self) -> Number;
+    fn color(&self, hit_point: &Vec3) -> Number;
     fn surface_normal(&self, hit_point: &Vec3) -> Vec3;
-    fn texture_coords(&self, hit_point: &Point) -> TextureCoords;
 }
 
 #[derive(Debug)]
@@ -196,7 +189,7 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
                         let mut added_color = light.color;
                         added_color.do_mul(&light_power);
                         added_color.do_div(&PI);
-                        added_color.do_mul(&i.object.color());
+                        added_color.do_mul(&i.object.color(&hit_point));
 
                         color.do_add(&added_color);
                     }
@@ -335,6 +328,7 @@ fn main() {
                     z: Number::from(-1),
                 },
                 color: Number::from(1),
+                checkerboarded: false,
             }),
             Box::new(Plane {
                 origin: Vec3 {
@@ -347,11 +341,8 @@ fn main() {
                     y: Number::from(-1),
                     z: Number::from(0),
                 },
-                color: {
-                    let mut c = Number::from(70);
-                    c.do_div(&Number::from(100));
-                    c
-                },
+                color: Number::from(-1),
+                checkerboarded: true,
             }),
         ],
         lights: vec![

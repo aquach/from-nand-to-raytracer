@@ -1,7 +1,7 @@
 use crate::Element;
+use crate::Number;
 use crate::Ray;
 use crate::Vec3;
-use crate::Number;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sphere {
@@ -46,7 +46,7 @@ impl Element for Sphere {
         Some(if t0.is_less_than(&t1) { t0 } else { t1 })
     }
 
-    fn color(&self) -> Number {
+    fn color(&self, _: &Vec3) -> Number {
         self.color
     }
 
@@ -60,11 +60,11 @@ impl Element for Sphere {
 
 #[cfg(test)]
 mod test {
+    use super::Sphere;
     use crate::vector::Vec3;
+    use crate::Element;
     use crate::Number;
     use crate::Ray;
-    use crate::Element;
-    use super::Sphere;
 
     #[test]
     fn test_sphere_intersect() {
@@ -94,7 +94,6 @@ mod test {
         assert!(sphere
             .intersect(&ray)
             .filter(|d| d.cmp(&Number::from(3)) == 0)
-            .is_some()
-            );
+            .is_some());
     }
 }

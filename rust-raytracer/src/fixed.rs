@@ -30,6 +30,11 @@ impl Number {
         Number(r)
     }
 
+    pub fn to_int32(mut self) -> Int32 {
+        self.0.do_right_shift_bytes(*BYTES_FOR_FRAC);
+        self.0
+    }
+
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()
     }

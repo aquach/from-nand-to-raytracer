@@ -66,6 +66,36 @@ impl Vec3 {
 
         xx
     }
+
+    pub fn do_cross(&mut self, other: &Vec3) {
+        let mut x1 = self.y;
+        x1.do_mul(&other.z);
+
+        let mut x2 = self.z;
+        x2.do_mul(&other.y);
+
+        x1.do_sub(&x2);
+
+        let mut y1 = self.z;
+        y1.do_mul(&other.x);
+
+        let mut y2 = self.x;
+        y2.do_mul(&other.z);
+
+        y1.do_sub(&y2);
+
+        let mut z1 = self.x;
+        z1.do_mul(&other.y);
+
+        let mut z2 = self.y;
+        z2.do_mul(&other.x);
+
+        z1.do_sub(&z2);
+
+        self.x = x1;
+        self.y = y1;
+        self.z = z1;
+    }
 }
 
 impl fmt::Display for Vec3 {

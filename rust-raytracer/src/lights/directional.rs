@@ -1,5 +1,5 @@
-use crate::Vec3;
 use crate::Number;
+use crate::Vec3;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Directional {
