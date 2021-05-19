@@ -1,19 +1,18 @@
 use crate::Element;
 use crate::Ray;
 use crate::Vec3;
-
-type Fixed = crate::fixed::Q16_16;
+use crate::Number;
 
 #[derive(Debug, Clone, Copy)]
 // One-sided plane.
 pub struct Plane {
     pub origin: Vec3,
     pub normal: Vec3,
-    pub color: Fixed,
+    pub color: Number,
 }
 
 impl Element for Plane {
-    fn intersect(&self, ray: &Ray) -> Option<Fixed> {
+    fn intersect(&self, ray: &Ray) -> Option<Number> {
         let denom = self.normal.dot(&ray.direction);
 
         if !denom.is_positive() {
@@ -33,13 +32,13 @@ impl Element for Plane {
         }
     }
 
-    fn color(&self) -> Fixed {
+    fn color(&self) -> Number {
         self.color
     }
 
     fn surface_normal(&self, _: &Vec3) -> Vec3 {
         let mut c = self.normal;
-        c.do_scale(&Fixed::from(-1));
+        c.do_scale(&Number::from(-1));
         c
     }
 }
@@ -47,7 +46,7 @@ impl Element for Plane {
 #[cfg(test)]
 mod test {
     use crate::vector::Vec3;
-    use crate::Fixed;
+    use crate::Number;
     use crate::Ray;
     use crate::Element;
     use super::Plane;
@@ -56,34 +55,34 @@ mod test {
     fn test_plane_intersect() {
         let plane = Plane {
             origin: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(-5),
+                x: Number::from(0),
+                y: Number::from(0),
+                z: Number::from(-5),
             },
             normal: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(-1),
+                x: Number::from(0),
+                y: Number::from(0),
+                z: Number::from(-1),
             },
-            color: Fixed::from(0),
+            color: Number::from(0),
         };
 
         let ray = Ray {
             origin: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(0),
+                x: Number::from(0),
+                y: Number::from(0),
+                z: Number::from(0),
             },
             direction: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(-1),
+                x: Number::from(0),
+                y: Number::from(0),
+                z: Number::from(-1),
             },
         };
 
         assert!(plane
             .intersect(&ray)
-            .filter(|d| d.cmp(&Fixed::from(5)) == 0)
+            .filter(|d| d.cmp(&Number::from(5)) == 0)
             .is_some());
     }
 }

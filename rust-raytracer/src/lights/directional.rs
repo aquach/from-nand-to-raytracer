@@ -1,9 +1,8 @@
 use crate::Vec3;
-
-type Fixed = crate::fixed::Q16_16;
+use crate::Number;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Directional {
     pub direction: Vec3,
-    pub color: Fixed,
+    pub color: Number,
 }

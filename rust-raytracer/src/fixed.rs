@@ -10,24 +10,24 @@ lazy_static! {
         x.do_mul(&y);
         x
     };
-    pub static ref PI: Q16_16 = {
+    pub static ref PI: Number = {
         let mut x = Int32::from(561);
         let y = Int32::from(367);
         x.do_mul(&y);
-        Q16_16(x)
+        Number(x)
     };
 }
 
 #[derive(Clone, Copy)]
-pub struct Q16_16(Int32);
+pub struct Number(Int32);
 
-impl Q16_16 {
-    pub fn from(i: i16) -> Q16_16 {
+impl Number {
+    pub fn from(i: i16) -> Number {
         assert!(SCALE_FACTOR.to_i32() == i32::pow(256, u32::try_from(*BYTES_FOR_FRAC).unwrap()));
 
         let mut r = Int32::from(i);
         r.do_left_shift_bytes(*BYTES_FOR_FRAC);
-        Q16_16(r)
+        Number(r)
     }
 
     pub fn is_zero(&self) -> bool {
@@ -42,27 +42,37 @@ impl Q16_16 {
         self.0.is_positive()
     }
 
-    pub fn do_add(&mut self, other: &Q16_16) {
+    pub fn do_add(&mut self, other: &Number) {
         self.0.do_add(&other.0);
     }
 
-    pub fn do_sub(&mut self, other: &Q16_16) {
+    pub fn do_sub(&mut self, other: &Number) {
         self.0.do_sub(&other.0);
     }
 
-    pub fn do_mul(&mut self, other: &Q16_16) {
+    pub fn do_mul(&mut self, other: &Number) {
         self.0.do_mul_right_shift_bytes(&other.0, *BYTES_FOR_FRAC);
     }
 
-    pub fn do_div(&mut self, other: &Q16_16) {
+    pub fn do_div(&mut self, other: &Number) {
         self.0.do_left_shift_bytes_div(*BYTES_FOR_FRAC, &other.0);
     }
 
     pub fn do_sqrt(&mut self) {
+        let mut sqrt_s = SCALE_FACTOR.clone();
+        sqrt_s.do_sqrt();
+
+        let mut sqrt_sqrt_s = sqrt_s;
+        sqrt_sqrt_s.do_sqrt();
+
+        let mut sqrt_sqrt_sqrt_s = sqrt_sqrt_s;
+        sqrt_sqrt_sqrt_s.do_sqrt();
+
+        self.0.do_mul(&sqrt_sqrt_s);
         self.0.do_sqrt();
-        let mut s = SCALE_FACTOR.clone();
-        s.do_sqrt();
-        self.0.do_mul(&s);
+        self.0.do_mul(&sqrt_sqrt_sqrt_s);
+        self.0.do_mul(&sqrt_sqrt_sqrt_s);
+        self.0.do_mul(&sqrt_sqrt_sqrt_s);
     }
 
     pub fn do_neg(&mut self) {
@@ -77,10 +87,6 @@ impl Q16_16 {
         f64::from(self.0.to_i32()) / f64::from(SCALE_FACTOR.to_i32())
     }
 
-    pub fn do_sin(&mut self) {}
-
-    pub fn do_cos(&mut self) {}
-
     pub fn do_tan(&mut self) {
         // TODO CHEATING
         let result = f64::tan(self.to_f64());
@@ -88,34 +94,34 @@ impl Q16_16 {
         self.0.do_mul(&Int32::from(2));
     }
 
-    pub fn cmp(&self, other: &Q16_16) -> i16 {
+    pub fn cmp(&self, other: &Number) -> i16 {
         self.0.cmp(&other.0)
     }
 
-    pub fn is_less_than(&self, other: &Q16_16) -> bool {
+    pub fn is_less_than(&self, other: &Number) -> bool {
         self.0.cmp(&other.0) < 0
     }
 }
 
-impl fmt::Debug for Q16_16 {
+impl fmt::Debug for Number {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Q16_16({})", self.to_f64())
+        write!(f, "Number({})", self.to_f64())
     }
 }
 
-impl fmt::Display for Q16_16 {
+impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_f64(),)
+        write!(f, "{}", self.to_f64())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::Q16_16;
+    use super::Number;
 
     fn test_one_mul(x: i16, y: i16) {
-        let xi = Q16_16::from(x);
-        let yi = Q16_16::from(y);
+        let xi = Number::from(x);
+        let yi = Number::from(y);
 
         let mut result = xi;
         result.do_mul(&yi);
@@ -130,8 +136,8 @@ mod test {
     }
 
     fn test_one_add(x: i16, y: i16) {
-        let xi = Q16_16::from(x);
-        let yi = Q16_16::from(y);
+        let xi = Number::from(x);
+        let yi = Number::from(y);
 
         let mut result = xi;
         result.do_add(&yi);
@@ -146,8 +152,8 @@ mod test {
     }
 
     fn test_one_sub(x: i16, y: i16) {
-        let xi = Q16_16::from(x);
-        let yi = Q16_16::from(y);
+        let xi = Number::from(x);
+        let yi = Number::from(y);
 
         let mut result = xi;
         result.do_sub(&yi);
@@ -158,8 +164,8 @@ mod test {
     }
 
     fn test_one_div(x: i16, y: i16) {
-        let xi = Q16_16::from(x);
-        let yi = Q16_16::from(y);
+        let xi = Number::from(x);
+        let yi = Number::from(y);
 
         let mut result = xi;
         result.do_div(&yi);
@@ -177,7 +183,7 @@ mod test {
         );
     }
 
-    fn test_one_sqrt(x: Q16_16) {
+    fn test_one_sqrt(x: Number) {
         let mut result = x;
         result.do_sqrt();
         let actual = result.to_f64();
@@ -194,8 +200,8 @@ mod test {
 
     #[test]
     fn test_part() {
-        let mut x = Q16_16::from(3);
-        let y = Q16_16::from(2);
+        let mut x = Number::from(3);
+        let y = Number::from(2);
         x.do_div(&y);
     }
 
@@ -274,74 +280,77 @@ mod test {
 
     #[test]
     fn test_is_negative() {
-        assert_eq!(Q16_16::from(0).is_negative(), false);
+        assert_eq!(Number::from(0).is_negative(), false);
 
-        assert_eq!(Q16_16::from(-1).is_negative(), true);
-        assert_eq!(Q16_16::from(-2).is_negative(), true);
-        assert_eq!(Q16_16::from(-30000).is_negative(), true);
+        assert_eq!(Number::from(-1).is_negative(), true);
+        assert_eq!(Number::from(-2).is_negative(), true);
+        assert_eq!(Number::from(-30000).is_negative(), true);
 
-        assert_eq!(Q16_16::from(1).is_negative(), false);
-        assert_eq!(Q16_16::from(2).is_negative(), false);
-        assert_eq!(Q16_16::from(30000).is_negative(), false);
+        assert_eq!(Number::from(1).is_negative(), false);
+        assert_eq!(Number::from(2).is_negative(), false);
+        assert_eq!(Number::from(30000).is_negative(), false);
     }
 
     #[test]
     fn test_neg() {
-        let mut x = Q16_16::from(0);
+        let mut x = Number::from(0);
         x.do_neg();
         assert_eq!(x.to_f64(), 0f64);
 
-        let mut x = Q16_16::from(1);
+        let mut x = Number::from(1);
         x.do_neg();
         assert_eq!(x.to_f64(), -1f64);
 
-        let mut x = Q16_16::from(-5);
+        let mut x = Number::from(-5);
         x.do_neg();
         assert_eq!(x.to_f64(), 5f64);
 
-        let mut x = Q16_16::from(30000);
+        let mut x = Number::from(30000);
         x.do_neg();
         assert_eq!(x.to_f64(), -30000f64);
 
-        let mut x = Q16_16::from(-30000);
+        let mut x = Number::from(-30000);
         x.do_neg();
         assert_eq!(x.to_f64(), 30000f64);
 
-        let mut x = Q16_16::from(256);
+        let mut x = Number::from(256);
         x.do_neg();
         assert_eq!(x.to_f64(), -256f64);
     }
 
     #[test]
     fn test_abs() {
-        let mut x = Q16_16::from(0);
+        let mut x = Number::from(0);
         x.do_abs();
         assert_eq!(x.to_f64(), 0f64);
 
-        let mut x = Q16_16::from(1);
+        let mut x = Number::from(1);
         x.do_abs();
         assert_eq!(x.to_f64(), 1f64);
 
-        let mut x = Q16_16::from(-5);
+        let mut x = Number::from(-5);
         x.do_abs();
         assert_eq!(x.to_f64(), 5f64);
 
-        let mut x = Q16_16::from(30000);
+        let mut x = Number::from(30000);
         x.do_abs();
         assert_eq!(x.to_f64(), 30000f64);
 
-        let mut x = Q16_16::from(-30000);
+        let mut x = Number::from(-30000);
         x.do_abs();
         assert_eq!(x.to_f64(), 30000f64);
     }
 
     #[test]
     fn test_sqrt() {
-        test_one_sqrt(Q16_16::from(0));
-        test_one_sqrt(Q16_16::from(1));
-        test_one_sqrt(Q16_16::from(9));
-        test_one_sqrt(Q16_16::from(15));
-        test_one_sqrt(Q16_16::from(30000));
-        test_one_sqrt(Q16_16::from(25000));
+        test_one_sqrt(Number::from(0));
+        test_one_sqrt(Number::from(1));
+        test_one_sqrt(Number::from(9));
+        test_one_sqrt(Number::from(15));
+        test_one_sqrt(Number::from(144));
+        test_one_sqrt(Number::from(147));
+        test_one_sqrt(Number::from(256));
+        test_one_sqrt(Number::from(1024));
+        test_one_sqrt(Number::from(1024));
     }
 }

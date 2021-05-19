@@ -252,7 +252,7 @@ impl Int32 {
         }
 
         let mut x = Int32::from(5);
-        for _ in 0..15 {
+        for _ in 0..20 {
             let mut inv = *self;
             inv.do_div(&x);
 

@@ -1,18 +1,17 @@
 use crate::Element;
 use crate::Ray;
 use crate::Vec3;
-
-type Fixed = crate::fixed::Q16_16;
+use crate::Number;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sphere {
     pub center: Vec3,
-    pub radius: Fixed,
-    pub color: Fixed,
+    pub radius: Number,
+    pub color: Number,
 }
 
 impl Element for Sphere {
-    fn intersect(&self, ray: &Ray) -> Option<Fixed> {
+    fn intersect(&self, ray: &Ray) -> Option<Number> {
         let mut to_center = self.center;
         to_center.do_sub(&ray.origin);
 
@@ -47,7 +46,7 @@ impl Element for Sphere {
         Some(if t0.is_less_than(&t1) { t0 } else { t1 })
     }
 
-    fn color(&self) -> Fixed {
+    fn color(&self) -> Number {
         self.color
     }
 
@@ -62,7 +61,7 @@ impl Element for Sphere {
 #[cfg(test)]
 mod test {
     use crate::vector::Vec3;
-    use crate::Fixed;
+    use crate::Number;
     use crate::Ray;
     use crate::Element;
     use super::Sphere;
@@ -71,30 +70,30 @@ mod test {
     fn test_sphere_intersect() {
         let sphere = Sphere {
             center: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(-5),
+                x: Number::from(0),
+                y: Number::from(0),
+                z: Number::from(-5),
             },
-            radius: Fixed::from(2),
-            color: Fixed::from(0),
+            radius: Number::from(2),
+            color: Number::from(0),
         };
 
         let ray = Ray {
             origin: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(0),
+                x: Number::from(0),
+                y: Number::from(0),
+                z: Number::from(0),
             },
             direction: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(-1),
+                x: Number::from(0),
+                y: Number::from(0),
+                z: Number::from(-1),
             },
         };
 
         assert!(sphere
             .intersect(&ray)
-            .filter(|d| d.cmp(&Fixed::from(3)) == 0)
+            .filter(|d| d.cmp(&Number::from(3)) == 0)
             .is_some()
             );
     }

@@ -4,6 +4,7 @@ extern crate image;
 
 mod elements;
 mod fixed;
+mod f64;
 mod int32;
 mod lights;
 mod ray;
@@ -17,24 +18,38 @@ use lights::directional::Directional;
 use std::convert::TryInto;
 use vector::Vec3;
 
-type Fixed = fixed::Q16_16;
+const DO_DITHERING: bool = false;
 
+// pub type Number = f64::Number;
+// use crate::f64::PI;
+
+pub type Number = fixed::Number;
+use crate::fixed::PI;
+
+#[derive(Debug)]
 pub struct Intersection<'a> {
-    distance_from_camera: Fixed,
+    distance_from_origin: Number,
     object: &'a Box<dyn Element>,
 }
 
+#[derive(Debug)]
+pub struct TextureCoords {
+    pub x: Number,
+    pub y: Number,
+}
+
 pub trait Element: std::fmt::Debug {
-    fn intersect(&self, ray: &Ray) -> Option<Fixed>;
-    fn color(&self) -> Fixed;
+    fn intersect(&self, ray: &Ray) -> Option<Number>;
+    fn color(&self) -> Number;
     fn surface_normal(&self, hit_point: &Vec3) -> Vec3;
+    fn texture_coords(&self, hit_point: &Point) -> TextureCoords;
 }
 
 #[derive(Debug)]
 pub struct Scene {
     pub width: i16,
     pub height: i16,
-    pub fov: Fixed,
+    pub fov: Number,
     pub elements: Vec<Box<dyn Element>>,
     pub lights: Vec<Directional>,
 }
@@ -43,18 +58,18 @@ impl Scene {
     pub fn create_prime_ray(&self, pixel_x: i16, pixel_y: i16) -> Ray {
         assert!(self.width > self.height);
 
-        let scene_width = Fixed::from(self.width);
-        let scene_height = Fixed::from(self.height);
+        let scene_width = Number::from(self.width);
+        let scene_height = Number::from(self.height);
 
-        let one = Fixed::from(1);
-        let two = Fixed::from(2);
+        let one = Number::from(1);
+        let two = Number::from(2);
 
-        let mut half = Fixed::from(1);
+        let mut half = Number::from(1);
         half.do_div(&two);
 
         let mut fov_adjustment = self.fov;
-        fov_adjustment.do_mul(&fixed::PI);
-        fov_adjustment.do_div(&Fixed::from(180));
+        fov_adjustment.do_mul(&PI);
+        fov_adjustment.do_div(&Number::from(180));
         fov_adjustment.do_div(&two);
         fov_adjustment.do_tan();
 
@@ -66,7 +81,7 @@ impl Scene {
         //     pixel_x, pixel_y, scene_width, scene_height, fov_adjustment, aspect_ratio
         // );
 
-        let mut sensor_x = Fixed::from(pixel_x);
+        let mut sensor_x = Number::from(pixel_x);
         sensor_x.do_add(&half);
         sensor_x.do_div(&scene_width);
         sensor_x.do_mul(&two);
@@ -74,7 +89,7 @@ impl Scene {
         sensor_x.do_mul(&aspect_ratio);
         sensor_x.do_mul(&fov_adjustment);
 
-        let mut sensor_y = Fixed::from(pixel_y);
+        let mut sensor_y = Number::from(pixel_y);
         sensor_y.do_add(&half);
         sensor_y.do_div(&scene_height);
         sensor_y.do_neg();
@@ -85,15 +100,15 @@ impl Scene {
         let mut direction = Vec3 {
             x: sensor_x,
             y: sensor_y,
-            z: Fixed::from(-1),
+            z: Number::from(-1),
         };
         direction.do_normalize();
 
         Ray {
             origin: Vec3 {
-                x: Fixed::from(0),
-                y: Fixed::from(0),
-                z: Fixed::from(0),
+                x: Number::from(0),
+                y: Number::from(0),
+                z: Number::from(0),
             },
             direction: direction,
         }
@@ -106,11 +121,11 @@ impl Scene {
             if let Some(d) = elem.intersect(ray) {
                 if !intersection
                     .as_ref()
-                    .filter(|i| i.distance_from_camera.is_less_than(&d))
+                    .filter(|i| i.distance_from_origin.is_less_than(&d))
                     .is_some()
                 {
                     intersection = Some(Intersection {
-                        distance_from_camera: d,
+                        distance_from_origin: d,
                         object: elem,
                     })
                 }
@@ -121,20 +136,20 @@ impl Scene {
     }
 }
 
-pub fn render(scene: &Scene) -> Vec<Vec<Fixed>> {
-    let black = Fixed::from(0);
+pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
+    let black = Number::from(0);
 
     let mut pixels = vec![];
     pixels.resize_with(scene.height.try_into().unwrap(), || {
         let mut row = vec![];
-        row.resize(scene.width.try_into().unwrap(), Fixed::from(0));
+        row.resize(scene.width.try_into().unwrap(), Number::from(0));
         row
     });
 
     let mut dither_pixels = vec![];
     dither_pixels.resize_with(scene.height.try_into().unwrap(), || {
         let mut row = vec![];
-        row.resize(scene.width.try_into().unwrap(), Fixed::from(0));
+        row.resize(scene.width.try_into().unwrap(), Number::from(0));
         row
     });
 
@@ -147,20 +162,20 @@ pub fn render(scene: &Scene) -> Vec<Vec<Fixed>> {
             let color = if let Some(i) = intersection {
                 let mut hit_point = ray.origin;
                 let mut offset = ray.direction;
-                offset.do_scale(&i.distance_from_camera);
+                offset.do_scale(&i.distance_from_origin);
                 hit_point.do_add(&offset);
 
                 let surface_normal = i.object.surface_normal(&hit_point);
 
-                let mut color = Fixed::from(0);
+                let mut color = Number::from(0);
 
                 for light in &scene.lights {
                     let mut direction_to_light = light.direction;
-                    direction_to_light.do_scale(&Fixed::from(-1));
+                    direction_to_light.do_scale(&Number::from(-1));
 
                     let mut shadow_bias = direction_to_light;
-                    let mut epsilon = Fixed::from(1);
-                    epsilon.do_div(&Fixed::from(50));
+                    let mut epsilon = Number::from(1);
+                    epsilon.do_div(&Number::from(20));
                     shadow_bias.do_scale(&epsilon);
 
                     let mut origin = hit_point;
@@ -175,12 +190,12 @@ pub fn render(scene: &Scene) -> Vec<Vec<Fixed>> {
                     if in_light {
                         let mut light_power = surface_normal.dot(&direction_to_light);
                         if light_power.is_negative() {
-                            light_power = Fixed::from(0);
+                            light_power = Number::from(0);
                         }
 
                         let mut added_color = light.color;
                         added_color.do_mul(&light_power);
-                        added_color.do_div(&fixed::PI);
+                        added_color.do_div(&PI);
                         added_color.do_mul(&i.object.color());
 
                         color.do_add(&added_color);
@@ -205,35 +220,35 @@ pub fn render(scene: &Scene) -> Vec<Vec<Fixed>> {
             pixels[yi][xi].do_add(&dither_pixels[yi][xi]);
 
             // Perform dithering.
-            if false {
-                let mut half = Fixed::from(1);
-                half.do_div(&Fixed::from(2));
+            if DO_DITHERING {
+                let mut half = Number::from(1);
+                half.do_div(&Number::from(2));
 
                 let is_white = pixels[yi][xi].cmp(&half) >= 0;
                 let new_color = if is_white {
-                    Fixed::from(1)
+                    Number::from(1)
                 } else {
-                    Fixed::from(0)
+                    Number::from(0)
                 };
                 let mut quant_error = pixels[yi][xi];
                 quant_error.do_sub(&new_color);
-                quant_error.do_div(&Fixed::from(16));
+                quant_error.do_div(&Number::from(16));
 
                 if x + 1 < scene.width {
                     let mut quant_error_7 = quant_error;
-                    quant_error_7.do_mul(&Fixed::from(7));
+                    quant_error_7.do_mul(&Number::from(7));
                     dither_pixels[yi][xi + 1].do_add(&quant_error_7);
                 }
 
                 if y + 1 < scene.height {
                     if x >= 1 {
                         let mut quant_error_3 = quant_error;
-                        quant_error_3.do_mul(&Fixed::from(3));
+                        quant_error_3.do_mul(&Number::from(3));
                         dither_pixels[yi + 1][xi - 1].do_add(&quant_error_3);
                     }
 
                     let mut quant_error_5 = quant_error;
-                    quant_error_5.do_mul(&Fixed::from(5));
+                    quant_error_5.do_mul(&Number::from(5));
                     dither_pixels[yi + 1][xi].do_add(&quant_error_5);
 
                     if x + 1 < scene.width {
@@ -242,16 +257,15 @@ pub fn render(scene: &Scene) -> Vec<Vec<Fixed>> {
                 }
 
                 pixels[yi][xi] = new_color;
-                print!("{}", if is_white { " " } else { "@" });
             }
         }
-        println!("");
+        eprint!(".");
     }
 
     pixels
 }
 
-pub fn to_rgba(color: &Fixed) -> image::Rgba<u8> {
+pub fn to_rgba(color: &Number) -> image::Rgba<u8> {
     let c = (color.to_f64() * 255f64).round() as u8;
     image::Rgba([c, c, c, 255])
 }
@@ -260,78 +274,82 @@ fn main() {
     let scene = Scene {
         width: 512,
         height: 256,
-        fov: Fixed::from(90),
+        fov: Number::from(90),
         elements: vec![
             Box::new(Sphere {
                 center: Vec3 {
-                    x: Fixed::from(-6),
-                    y: Fixed::from(0),
-                    z: Fixed::from(-5),
+                    x: Number::from(-6),
+                    y: {
+                        let mut r = Number::from(-1);
+                        r.do_div(&Number::from(2));
+                        r
+                    },
+                    z: Number::from(-5),
                 },
                 radius: {
-                    let mut r = Fixed::from(3);
-                    r.do_div(&Fixed::from(2));
+                    let mut r = Number::from(3);
+                    r.do_div(&Number::from(2));
                     r
                 },
                 color: {
-                    let mut c = Fixed::from(8);
-                    c.do_div(&Fixed::from(10));
+                    let mut c = Number::from(8);
+                    c.do_div(&Number::from(10));
                     c
                 },
             }),
             Box::new(Sphere {
                 center: Vec3 {
-                    x: Fixed::from(0),
-                    y: Fixed::from(0),
-                    z: Fixed::from(-5),
+                    x: Number::from(-1),
+                    y: Number::from(-1),
+                    z: Number::from(-5),
                 },
-                radius: Fixed::from(1),
+                radius: Number::from(1),
                 color: {
-                    let mut c = Fixed::from(6);
-                    c.do_div(&Fixed::from(10));
+                    let mut c = Number::from(6);
+                    c.do_div(&Number::from(10));
                     c
                 },
             }),
             Box::new(Sphere {
                 center: Vec3 {
-                    x: Fixed::from(2),
-                    y: Fixed::from(0),
-                    z: Fixed::from(-3),
+                    x: Number::from(2),
+                    y: Number::from(0),
+                    z: Number::from(-3),
                 },
-                radius: Fixed::from(2),
+                radius: Number::from(2),
                 color: {
-                    let mut c = Fixed::from(10);
-                    c.do_div(&Fixed::from(10));
+                    let mut c = Number::from(10);
+                    c.do_div(&Number::from(10));
                     c
                 },
             }),
             Box::new(Plane {
                 origin: Vec3 {
-                    x: Fixed::from(0),
-                    y: Fixed::from(0),
-                    z: Fixed::from(-25),
+                    x: Number::from(0),
+                    y: Number::from(0),
+                    z: Number::from(-25),
                 },
                 normal: Vec3 {
-                    x: Fixed::from(0),
-                    y: Fixed::from(0),
-                    z: Fixed::from(-1),
+                    x: Number::from(0),
+                    y: Number::from(0),
+                    z: Number::from(-1),
                 },
-                color: Fixed::from(1),
+                color: Number::from(1),
             }),
             Box::new(Plane {
                 origin: Vec3 {
-                    x: Fixed::from(0),
-                    y: Fixed::from(-2),
-                    z: Fixed::from(0),
+                    x: Number::from(0),
+                    y: Number::from(-2),
+                    z: Number::from(0),
                 },
                 normal: Vec3 {
-                    x: Fixed::from(0),
-                    y: Fixed::from(-1),
-                    z: Fixed::from(0),
+                    x: Number::from(0),
+                    y: Number::from(-1),
+                    z: Number::from(0),
                 },
                 color: {
-                    let mut c = Fixed::from(70);
-                    c.do_div(&Fixed::from(100));
+                    let mut c = Number::from(70);
+                    c.do_div(&Number::from(100));
                     c
                 },
             }),
@@ -340,32 +358,32 @@ fn main() {
             Directional {
                 direction: {
                     let mut v = Vec3 {
-                        x: Fixed::from(0),
-                        y: Fixed::from(0),
-                        z: Fixed::from(-1),
+                        x: Number::from(0),
+                        y: Number::from(-1),
+                        z: Number::from(-1),
                     };
                     v.do_normalize();
                     v
                 },
                 color: {
-                    let mut c = Fixed::from(5);
-                    c.do_div(&Fixed::from(100));
+                    let mut c = Number::from(5);
+                    c.do_div(&Number::from(100));
                     c
                 },
             },
             Directional {
                 direction: {
                     let mut v = Vec3 {
-                        x: Fixed::from(-1),
-                        y: Fixed::from(-1),
-                        z: Fixed::from(0),
+                        x: Number::from(-1),
+                        y: Number::from(-1),
+                        z: Number::from(0),
                     };
                     v.do_normalize();
                     v
                 },
                 color: {
-                    let mut c = Fixed::from(50);
-                    c.do_div(&Fixed::from(100));
+                    let mut c = Number::from(50);
+                    c.do_div(&Number::from(100));
                     c
                 },
             },
@@ -373,17 +391,17 @@ fn main() {
                 direction: {
                     let mut v = Vec3 {
                         x: {
-                            let mut v = Fixed::from(1);
-                            v.do_div(&Fixed::from(2));
+                            let mut v = Number::from(1);
+                            v.do_div(&Number::from(2));
                             v
                         },
-                        y: Fixed::from(-1),
-                        z: Fixed::from(0),
+                        y: Number::from(-1),
+                        z: Number::from(0),
                     };
                     v.do_normalize();
                     v
                 },
-                color: Fixed::from(1),
+                color: Number::from(1),
             },
         ],
     };

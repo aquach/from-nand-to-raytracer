@@ -1,11 +1,11 @@
-use crate::fixed::Q16_16;
+use crate::Number;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vec3 {
-    pub x: Q16_16,
-    pub y: Q16_16,
-    pub z: Q16_16,
+    pub x: Number,
+    pub y: Number,
+    pub z: Number,
 }
 
 impl Vec3 {
@@ -35,7 +35,7 @@ impl Vec3 {
         self.z.do_add(&other.z);
     }
 
-    pub fn do_scale(&mut self, s: &Q16_16) {
+    pub fn do_scale(&mut self, s: &Number) {
         self.x.do_mul(&s);
         self.y.do_mul(&s);
         self.z.do_mul(&s);
@@ -47,11 +47,11 @@ impl Vec3 {
         self.z.do_sub(&other.z);
     }
 
-    pub fn dist_sq(&self) -> Q16_16 {
+    pub fn dist_sq(&self) -> Number {
         self.dot(self)
     }
 
-    pub fn dot(&self, other: &Vec3) -> Q16_16 {
+    pub fn dot(&self, other: &Vec3) -> Number {
         let mut xx = self.x;
         xx.do_mul(&other.x);
 
