@@ -42,7 +42,6 @@ pub trait Element: std::fmt::Debug {
 pub struct Scene {
     pub width: i16,
     pub height: i16,
-    pub fov: Number,
     pub elements: Vec<Box<dyn Element>>,
     pub lights: Vec<Directional>,
 }
@@ -60,19 +59,8 @@ impl Scene {
         let mut half = Number::from(1);
         half.do_div(&two);
 
-        let mut fov_adjustment = self.fov;
-        fov_adjustment.do_mul(&PI);
-        fov_adjustment.do_div(&Number::from(180));
-        fov_adjustment.do_div(&two);
-        fov_adjustment.do_tan();
-
         let mut aspect_ratio = scene_width;
         aspect_ratio.do_div(&scene_height);
-
-        // println!(
-        //     "x: {} y: {} w: {} h: {} fov: {} aspect: {}",
-        //     pixel_x, pixel_y, scene_width, scene_height, fov_adjustment, aspect_ratio
-        // );
 
         let mut sensor_x = Number::from(pixel_x);
         sensor_x.do_add(&half);
@@ -80,7 +68,6 @@ impl Scene {
         sensor_x.do_mul(&two);
         sensor_x.do_sub(&one);
         sensor_x.do_mul(&aspect_ratio);
-        sensor_x.do_mul(&fov_adjustment);
 
         let mut sensor_y = Number::from(pixel_y);
         sensor_y.do_add(&half);
@@ -88,7 +75,6 @@ impl Scene {
         sensor_y.do_neg();
         sensor_y.do_mul(&two);
         sensor_y.do_add(&one);
-        sensor_y.do_mul(&fov_adjustment);
 
         let mut direction = Vec3 {
             x: sensor_x,
@@ -267,7 +253,6 @@ fn main() {
     let scene = Scene {
         width: 512,
         height: 256,
-        fov: Number::from(90),
         elements: vec![
             Box::new(Sphere {
                 center: Vec3 {
@@ -357,7 +342,7 @@ fn main() {
                     v
                 },
                 color: {
-                    let mut c = Number::from(5);
+                    let mut c = Number::from(2);
                     c.do_div(&Number::from(100));
                     c
                 },
@@ -373,7 +358,7 @@ fn main() {
                     v
                 },
                 color: {
-                    let mut c = Number::from(50);
+                    let mut c = Number::from(90);
                     c.do_div(&Number::from(100));
                     c
                 },
@@ -392,7 +377,11 @@ fn main() {
                     v.do_normalize();
                     v
                 },
-                color: Number::from(1),
+                color: {
+                    let mut c = Number::from(30);
+                    c.do_div(&Number::from(100));
+                    c
+                },
             },
         ],
     };

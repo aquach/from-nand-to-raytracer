@@ -118,6 +118,7 @@ mod test {
                 z: Number::from(-1),
             },
             color: Number::from(0),
+            checkerboarded: false
         };
 
         let ray = Ray {

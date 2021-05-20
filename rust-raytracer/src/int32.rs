@@ -3,7 +3,7 @@ use std::fmt;
 
 const MINVAL_I16: i16 = -32768;
 
-// Jack has no right shift (left shift is a multiply).
+// Jack has no right shift (left shift is a standard multiply).
 fn rightshift_i16(x: i16, n: i16) -> i16 {
     let mut r = x;
 
@@ -15,6 +15,16 @@ fn rightshift_i16(x: i16, n: i16) -> i16 {
         } else {
             r - MINVAL_I16
         }
+    }
+
+    r
+}
+
+fn leftshift_i16(x: i16, n: i16) -> i16 {
+    let mut r = x;
+
+    for _ in 0..n {
+        r = r * 2;
     }
 
     r
@@ -41,9 +51,127 @@ fn u4_array_mul_u4_array(u: &[i16; 8], v: &[i16; 8]) -> [i16; 16] {
     w
 }
 
+// Number of leading zeros of x, pretending that it's a u8.
+fn nlz_u8(x: i16) -> i16 {
+    let mut r = 0;
+
+    for shift in (0..8).rev() {
+        if rightshift_i16(x, shift) == 0 {
+            r += 1
+        } else {
+            break;
+        }
+    }
+
+    r
+}
+
+// Upper byte of each i16 is empty.
+fn u8_array_div_u8_array(u: &[i16; 8], v: &[i16; 4], v_size: usize) -> [i16; 8] {
+    let base = 256; // Each chunk is 8 bits.
+
+    let mut q = [255i16; 8];
+
+    if v_size == 1 {
+        // Simple algorithm for one-chunk divisor.
+
+        // Rolling remainder.
+        let mut k = 0;
+
+        for j in (0..8).rev() {
+            let val = k * base + u[j];
+            q[j] = val / v[0];
+            k = val - q[j] * v[0];
+        }
+        return q;
+    }
+
+    // Shift divisor so that high bit is set.
+    let shift = nlz_u8(v[v_size - 1]); // - 16;
+
+    println!("nlz: {}", shift);
+
+    let mut vn = [0i16; 4];
+
+    for i in (1..v_size).rev() {
+        vn[i] = leftshift_i16(v[i], shift) | rightshift_i16(v[i - 1], 8 - shift);
+    }
+
+    vn[0] = leftshift_i16(v[0], shift) & 0xFF;
+
+    println!("v before: {:?}, v after: {:?}", v, vn);
+
+    let mut un = [0i16; 9];
+    un[8] = rightshift_i16(u[7], 16 - shift);
+    for i in (1..8).rev() {
+        un[i] = (leftshift_i16(u[i], shift) | rightshift_i16(u[i - 1], 8 - shift)) & 0xFF;
+    }
+    un[0] = leftshift_i16(u[0], shift) & 0xFF;
+
+    println!("u before: {:?}, u after: {:?}", u, un);
+
+    for j in (0..=(8 - v_size)).rev() {
+        // Compute estimate qhat of q[j].
+        let val = un[j + v_size] * base + un[j + v_size - 1];
+        let mut qhat = val / vn[v_size - 1];
+        let mut rhat = val - qhat * vn[v_size - 1];
+
+        println!(
+            "j: {} val: {}, qhat: {}, divisor: {}, rhat: {}",
+            j,
+            val,
+            qhat,
+            vn[v_size - 1],
+            rhat
+        );
+
+        loop {
+            if qhat >= base
+                || i32::from(qhat) * i32::from(vn[v_size - 2])
+                    > i32::from(base) * i32::from(rhat) + i32::from(un[j + v_size - 2])
+            {
+                qhat = qhat - 1;
+                rhat = rhat + vn[v_size - 1];
+                if rhat < base {
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // Multiply and subtract.
+        let mut k = 0;
+        let mut t;
+
+        for i in 0..v_size {
+            let p = qhat * vn[i];
+            t = un[i + j] - k - (p & 0xFF);
+            un[i + j] = t;
+            k = (p >> 8) - (t >> 8);
+        }
+
+        t = un[j + v_size] - k;
+        un[j + v_size] = t;
+
+        q[j] = qhat;
+        if t < 0 {
+            q[j] = q[j] - 1;
+            k = 0;
+            for i in 0..v_size {
+                t = un[i + j] + vn[i] + k;
+                un[i + j] = t;
+                k = t >> 8;
+            }
+            un[j + v_size] = un[j + v_size] + k;
+        }
+    }
+
+    q
+}
+
 #[derive(Clone, Copy)]
 pub struct Int32 {
-    parts: [i16; 4], // Upper byte of each i16 is empty.
+    parts: [i16; 4], // Upper byte of each i16 is empty, which helps annoying overflow issues.
 }
 
 impl Int32 {
@@ -215,26 +343,105 @@ impl Int32 {
     }
 
     pub fn do_div(&mut self, other: &Int32) {
-        // CHEATING
-        let result = self.to_i32() / other.to_i32();
-
-        self.parts[0] = i16::try_from(result & 0xFF).unwrap();
-        self.parts[1] = i16::try_from((result >> 8) & 0xFF).unwrap();
-        self.parts[2] = i16::try_from((result >> 16) & 0xFF).unwrap();
-        self.parts[3] = i16::try_from((result >> 24) & 0xFF).unwrap();
-
-        self.validate();
+        self.do_left_shift_bytes_div(0, other);
     }
 
     pub fn do_left_shift_bytes_div(&mut self, left_shift_bytes: usize, other: &Int32) {
-        // CHEATING
-        let result =
-            (i64::from(self.to_i32()) << (left_shift_bytes * 8)) / i64::from(other.to_i32());
+        assert!(left_shift_bytes <= 3);
 
-        self.parts[0] = i16::try_from(result & 0xFF).unwrap();
-        self.parts[1] = i16::try_from((result >> 8) & 0xFF).unwrap();
-        self.parts[2] = i16::try_from((result >> 16) & 0xFF).unwrap();
-        self.parts[3] = i16::try_from((result >> 24) & 0xFF).unwrap();
+        let self_parts: &[i16; 4];
+        let other_parts: &[i16; 4];
+
+        let mut abs1: Int32;
+        let mut abs2: Int32;
+
+        let is_result_neg = self.is_negative() ^ other.is_negative();
+
+        if self.is_negative() {
+            abs1 = *self;
+            abs1.do_abs();
+            self_parts = &abs1.parts;
+        } else {
+            self_parts = &self.parts;
+        }
+
+        if other.is_negative() {
+            abs2 = other.clone();
+            abs2.do_abs();
+            other_parts = &abs2.parts;
+        } else {
+            other_parts = &other.parts;
+        }
+
+        let self_parts_shifted: [i16; 8] = [
+            if left_shift_bytes == 0 {
+                self_parts[0 - left_shift_bytes]
+            } else {
+                0
+            },
+            if left_shift_bytes <= 1 {
+                self_parts[1 - left_shift_bytes]
+            } else {
+                0
+            },
+            if left_shift_bytes <= 2 {
+                self_parts[2 - left_shift_bytes]
+            } else {
+                0
+            },
+            if left_shift_bytes <= 3 {
+                self_parts[3 - left_shift_bytes]
+            } else {
+                0
+            },
+            if left_shift_bytes >= 1 {
+                self_parts[4 - left_shift_bytes]
+            } else {
+                0
+            },
+            if left_shift_bytes >= 2 {
+                self_parts[5 - left_shift_bytes]
+            } else {
+                0
+            },
+            if left_shift_bytes >= 3 {
+                self_parts[6 - left_shift_bytes]
+            } else {
+                0
+            },
+            0,
+        ];
+
+        let divisor_size = if other_parts[3] > 0 {
+            4
+        } else if other_parts[2] > 0 {
+            3
+        } else if other_parts[1] > 0 {
+            2
+        } else if other_parts[0] > 0 {
+            1
+        } else {
+            panic!("Divide by zero trying to divide {} by {}", self, other);
+        };
+
+        println!(
+            "Dividing {:?} by {:?}, divisor size {}",
+            self_parts_shifted, other_parts, divisor_size
+        );
+        println!("result expected to be negative: {}", is_result_neg);
+
+        let result = u8_array_div_u8_array(&self_parts_shifted, other_parts, divisor_size);
+
+        println!("result: {:?}", result);
+
+        self.parts[0] = result[0];
+        self.parts[1] = result[1];
+        self.parts[2] = result[2];
+        self.parts[3] = result[3];
+
+        if is_result_neg {
+            self.do_neg();
+        }
 
         self.validate();
     }
@@ -357,6 +564,7 @@ impl fmt::Display for Int32 {
 
 #[cfg(test)]
 mod test {
+    use super::nlz_u8;
     use super::Int32;
 
     fn test_one_mul(x: i16, y: i16) {
@@ -382,9 +590,13 @@ mod test {
         let mut result = xi;
         result.do_add(&yi);
 
-        println!("{} + {} = {}", xi, yi, result);
-
-        assert_eq!(result.to_i32(), i32::from(x) + i32::from(y));
+        let actual = result.to_i32();
+        let expected = i32::from(x) + i32::from(y);
+        assert_eq!(
+            actual, expected,
+            "{} + {} = {} but got {}",
+            x, y, expected, actual
+        );
     }
 
     fn test_one_sub(x: i16, y: i16) {
@@ -394,9 +606,13 @@ mod test {
         let mut result = xi;
         result.do_sub(&yi);
 
-        println!("{} - {} = {}", xi, yi, result);
-
-        assert_eq!(result.to_i32(), i32::from(x) - i32::from(y));
+        let actual = result.to_i32();
+        let expected = i32::from(x) - i32::from(y);
+        assert_eq!(
+            actual, expected,
+            "{} - {} = {} but got {}",
+            x, y, expected, actual
+        );
     }
 
     fn test_one_div(x: i16, y: i16) {
@@ -406,9 +622,13 @@ mod test {
         let mut result = xi;
         result.do_div(&yi);
 
-        println!("{} / {} = {}", xi, yi, result);
-
-        assert_eq!(result.to_i32(), i32::from(x) / i32::from(y));
+        let actual = result.to_i32();
+        let expected = i32::from(x) / i32::from(y);
+        assert_eq!(
+            actual, expected,
+            "{} / {} = {} but got {}",
+            x, y, expected, actual
+        );
     }
 
     fn test_one_cmp(x: i16, y: i16) {
@@ -503,11 +723,17 @@ mod test {
     fn test_div() {
         test_one_div(4, 3);
         test_one_div(100, 3);
+        test_one_div(10000, 3);
+        test_one_div(10000, 1);
+        test_one_div(5000, 1000);
         test_one_div(100, 350);
         test_one_div(10, 5000);
         test_one_div(10098, 594);
         test_one_div(10099, 594);
         test_one_div(10097, 594);
+        test_one_div(13, 2);
+        test_one_div(13, 6);
+        test_one_div(2382, 124);
         test_one_div(5000, 5000);
         test_one_div(32600, 32600);
         test_one_div(2, -2);
@@ -679,5 +905,18 @@ mod test {
         test_one_cmp(200, -380);
 
         test_one_cmp(-500, -400);
+    }
+
+    #[test]
+    fn test_nlz_u8() {
+        assert_eq!(nlz_u8(0), 8);
+        assert_eq!(nlz_u8(1), 7);
+        assert_eq!(nlz_u8(8), 4);
+        assert_eq!(nlz_u8(9), 4);
+        assert_eq!(nlz_u8(15), 4);
+        assert_eq!(nlz_u8(16), 3);
+        assert_eq!(nlz_u8(50), 2);
+        assert_eq!(nlz_u8(120), 1);
+        assert_eq!(nlz_u8(201), 0);
     }
 }

@@ -92,13 +92,6 @@ impl Number {
         f64::from(self.0.to_i32()) / f64::from(SCALE_FACTOR.to_i32())
     }
 
-    pub fn do_tan(&mut self) {
-        // TODO CHEATING
-        let result = f64::tan(self.to_f64());
-        self.0 = Int32::from((result * f64::from(1 << (8 * *BYTES_FOR_FRAC - 1))).trunc() as i16);
-        self.0.do_mul(&Int32::from(2));
-    }
-
     pub fn cmp(&self, other: &Number) -> i16 {
         self.0.cmp(&other.0)
     }
