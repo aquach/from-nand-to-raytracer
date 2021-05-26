@@ -19,7 +19,7 @@ use lights::directional::Directional;
 use std::convert::TryInto;
 use vector::Vec3;
 
-const DO_DITHERING: bool = true;
+const DO_DITHERING: bool = false;
 
 // pub type Number = f64::Number;
 // use crate::f64::PI;

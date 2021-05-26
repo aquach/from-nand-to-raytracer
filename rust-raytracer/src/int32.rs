@@ -1,7 +1,8 @@
 use std::fmt;
 use std::convert::TryFrom;
 
-fn rightshift_i16(x: i16, n: i16) -> i16 {
+// Jack doesn't have these, so we need to reimplement them.
+fn arith_rightshift(x: i16, n: i16) -> i16 {
     let mut r = x;
 
     for _ in 0..n {
@@ -16,7 +17,7 @@ fn rightshift_i16(x: i16, n: i16) -> i16 {
     r
 }
 
-fn leftshift_i16(x: i16, n: i16) -> i16 {
+fn leftshift(x: i16, n: i16) -> i16 {
     let mut r = x;
 
     for _ in 0..n {
@@ -39,7 +40,7 @@ fn u4_array_mul_u4_array(u: &[i16; 8], v: &[i16; 8]) -> [i16; 16] {
             // We can't do use u8s because u8 * u8 = u16 and u16s don't fit in i16.
             let t = u[i] * v[j] + w[i + j] + k;
             w[i + j] = t & 0x0F;
-            k = rightshift_i16(t, 4);
+            k = arith_rightshift(t, 4);
         }
         w[j + 8] = k;
     }
@@ -52,7 +53,7 @@ fn nlz_u4(x: i16) -> i16 {
     let mut r = 0;
 
     for shift in (0..4).rev() {
-        if rightshift_i16(x, shift) == 0 {
+        if arith_rightshift(x, shift) == 0 {
             r += 1
         } else {
             break;
@@ -88,17 +89,17 @@ fn u4_array_div_u4_array(u: &[i16; 16], v: &[i16; 8], v_size: usize) -> [i16; 16
     let mut vn = [0i16; 8];
 
     for i in (1..v_size).rev() {
-        vn[i] = (leftshift_i16(v[i], shift) | rightshift_i16(v[i - 1], 4 - shift)) & 0x0F;
+        vn[i] = (leftshift(v[i], shift) | arith_rightshift(v[i - 1], 4 - shift)) & 0x0F;
     }
 
-    vn[0] = leftshift_i16(v[0], shift) & 0x0F;
+    vn[0] = leftshift(v[0], shift) & 0x0F;
 
     let mut dividend = [0i16; 17];
-    dividend[16] = rightshift_i16(u[15], 4 - shift);
+    dividend[16] = arith_rightshift(u[15], 4 - shift);
     for i in (1..16).rev() {
-        dividend[i] = (leftshift_i16(u[i], shift) | rightshift_i16(u[i - 1], 4 - shift)) & 0x0F;
+        dividend[i] = (leftshift(u[i], shift) | arith_rightshift(u[i - 1], 4 - shift)) & 0x0F;
     }
-    dividend[0] = leftshift_i16(u[0], shift) & 0x0F;
+    dividend[0] = leftshift(u[0], shift) & 0x0F;
 
     // Crank out the quotient one digit at a time, from most significant to least.
     for j in (0..=(16 - v_size)).rev() {
@@ -128,7 +129,7 @@ fn u4_array_div_u4_array(u: &[i16; 16], v: &[i16; 8], v_size: usize) -> [i16; 16
             // Simulate wrap-around math. We track the carry below independently.
             dividend[i + j] = t & 0x0F;
 
-            carry = rightshift_i16(multiplied, 4) - rightshift_i16(t, 4);
+            carry = arith_rightshift(multiplied, 4) - arith_rightshift(t, 4);
         }
 
         let t = dividend[j + v_size] - carry;
@@ -137,11 +138,12 @@ fn u4_array_div_u4_array(u: &[i16; 16], v: &[i16; 8], v_size: usize) -> [i16; 16
         q[j] = qhat;
 
         if t < 0 {
+            carry = 0;
             q[j] = q[j] - 1;
             for i in 0..v_size {
                 let t = dividend[i + j] + vn[i] + carry;
                 dividend[i + j] = t & 0x0F;
-                carry = rightshift_i16(t, 4)
+                carry = arith_rightshift(t, 4)
             }
             dividend[j + v_size] = dividend[j + v_size] + carry;
         }
@@ -158,7 +160,7 @@ pub struct Int32 {
 impl Int32 {
     pub fn from(i: i16) -> Int32 {
         let i_low = i & 0xFF;
-        let i_high = rightshift_i16(i, 8) & 0xFF;
+        let i_high = arith_rightshift(i, 8) & 0xFF;
         let smear = if i < 0 { 0xFF } else { 0 };
         let r = Int32 {
             parts: [i_low, i_high, smear, smear],
@@ -167,7 +169,7 @@ impl Int32 {
         r
     }
 
-    fn from_i32(i: i32) -> Int32 {
+    pub fn from_i32(i: i32) -> Int32 {
         let r = Int32 {
             parts: [
                 i16::try_from(i & 0xFF).unwrap(),
@@ -292,23 +294,23 @@ impl Int32 {
 
         let self_parts_expanded: [i16; 8] = [
             self_parts[0] & 0x0F,
-            rightshift_i16(self_parts[0], 4),
+            arith_rightshift(self_parts[0], 4),
             self_parts[1] & 0x0F,
-            rightshift_i16(self_parts[1], 4),
+            arith_rightshift(self_parts[1], 4),
             self_parts[2] & 0x0F,
-            rightshift_i16(self_parts[2], 4),
+            arith_rightshift(self_parts[2], 4),
             self_parts[3] & 0x0F,
-            rightshift_i16(self_parts[3], 4),
+            arith_rightshift(self_parts[3], 4),
         ];
         let other_parts_expanded: [i16; 8] = [
             other_parts[0] & 0x0F,
-            rightshift_i16(other_parts[0], 4),
+            arith_rightshift(other_parts[0], 4),
             other_parts[1] & 0x0F,
-            rightshift_i16(other_parts[1], 4),
+            arith_rightshift(other_parts[1], 4),
             other_parts[2] & 0x0F,
-            rightshift_i16(other_parts[2], 4),
+            arith_rightshift(other_parts[2], 4),
             other_parts[3] & 0x0F,
-            rightshift_i16(other_parts[3], 4),
+            arith_rightshift(other_parts[3], 4),
         ];
 
         let result = u4_array_mul_u4_array(&self_parts_expanded, &other_parts_expanded);
@@ -412,31 +414,31 @@ impl Int32 {
 
         let self_parts_expanded: [i16; 16] = [
             self_parts_shifted[0] & 0x0F,
-            rightshift_i16(self_parts_shifted[0], 4),
+            arith_rightshift(self_parts_shifted[0], 4),
             self_parts_shifted[1] & 0x0F,
-            rightshift_i16(self_parts_shifted[1], 4),
+            arith_rightshift(self_parts_shifted[1], 4),
             self_parts_shifted[2] & 0x0F,
-            rightshift_i16(self_parts_shifted[2], 4),
+            arith_rightshift(self_parts_shifted[2], 4),
             self_parts_shifted[3] & 0x0F,
-            rightshift_i16(self_parts_shifted[3], 4),
+            arith_rightshift(self_parts_shifted[3], 4),
             self_parts_shifted[4] & 0x0F,
-            rightshift_i16(self_parts_shifted[4], 4),
+            arith_rightshift(self_parts_shifted[4], 4),
             self_parts_shifted[5] & 0x0F,
-            rightshift_i16(self_parts_shifted[5], 4),
+            arith_rightshift(self_parts_shifted[5], 4),
             self_parts_shifted[6] & 0x0F,
-            rightshift_i16(self_parts_shifted[6], 4),
+            arith_rightshift(self_parts_shifted[6], 4),
             self_parts_shifted[7] & 0x0F,
-            rightshift_i16(self_parts_shifted[7], 4),
+            arith_rightshift(self_parts_shifted[7], 4),
         ];
         let other_parts_expanded: [i16; 8] = [
             other_parts[0] & 0x0F,
-            rightshift_i16(other_parts[0], 4),
+            arith_rightshift(other_parts[0], 4),
             other_parts[1] & 0x0F,
-            rightshift_i16(other_parts[1], 4),
+            arith_rightshift(other_parts[1], 4),
             other_parts[2] & 0x0F,
-            rightshift_i16(other_parts[2], 4),
+            arith_rightshift(other_parts[2], 4),
             other_parts[3] & 0x0F,
-            rightshift_i16(other_parts[3], 4),
+            arith_rightshift(other_parts[3], 4),
         ];
 
         let mut divisor_size = 255;
@@ -453,7 +455,6 @@ impl Int32 {
         let result =
             u4_array_div_u4_array(&self_parts_expanded, &other_parts_expanded, divisor_size);
 
-        println!("result: {:?}, dividing {} by {}", result, self, other);
         self.parts[0] = result[0] + result[1] * 16;
         self.parts[1] = result[2] + result[3] * 16;
         self.parts[2] = result[4] + result[5] * 16;
@@ -524,11 +525,11 @@ impl Int32 {
     }
 
     pub fn is_negative(&self) -> bool {
-        rightshift_i16(self.parts[3], 7) == 1
+        arith_rightshift(self.parts[3], 7) == 1
     }
 
     pub fn is_positive(&self) -> bool {
-        !self.is_zero() && rightshift_i16(self.parts[3], 7) == 0
+        !self.is_zero() && arith_rightshift(self.parts[3], 7) == 0
     }
 
     pub fn cmp(&self, other: &Int32) -> i16 {
@@ -953,8 +954,8 @@ mod test {
     #[case(-2, 2)]
     #[case(-1, 2)]
     #[case(0, 1)]
-    fn test_rightshift_i16(#[case] x: i16, #[case] s: i16) {
-        let actual = super::rightshift_i16(x, s);
+    fn test_arith_rightshift(#[case] x: i16, #[case] s: i16) {
+        let actual = super::arith_rightshift(x, s);
         let expected = x >> s;
         assert_eq!(
             actual, expected,
