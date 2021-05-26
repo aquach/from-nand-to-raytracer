@@ -1,6 +1,7 @@
+extern crate image;
 #[macro_use]
 extern crate lazy_static;
-extern crate image;
+extern crate rstest;
 
 mod elements;
 mod f64;

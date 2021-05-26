@@ -116,6 +116,7 @@ impl fmt::Display for Number {
 #[cfg(test)]
 mod test {
     use super::Number;
+    use rstest::*;
 
     fn test_one_mul(x: i16, y: i16) {
         let xi = Number::from(x);
@@ -159,41 +160,6 @@ mod test {
         println!("{} - {} = {}", xi, yi, result);
 
         assert_eq!(result.to_f64(), f64::from(x) - f64::from(y));
-    }
-
-    fn test_one_div(x: i16, y: i16) {
-        let xi = Number::from(x);
-        let yi = Number::from(y);
-
-        let mut result = xi;
-        result.do_div(&yi);
-
-        let actual = result.to_f64();
-        let expected = f64::from(x) / f64::from(y);
-
-        assert!(
-            f64::abs(result.to_f64() - f64::from(x) / f64::from(y)) <= 0.01,
-            "{} / {} = {} but got {}",
-            x,
-            y,
-            expected,
-            actual
-        );
-    }
-
-    fn test_one_sqrt(x: Number) {
-        let mut result = x;
-        result.do_sqrt();
-        let actual = result.to_f64();
-        let expected = f64::sqrt(x.to_f64());
-
-        assert!(
-            f64::abs(actual - expected) / (expected + 0.001) <= 0.01,
-            "sqrt({}) = {} but got {}",
-            x,
-            expected,
-            actual
-        );
     }
 
     #[test]
@@ -259,21 +225,44 @@ mod test {
         test_one_mul(0, 5082);
     }
 
-    #[test]
-    fn test_div() {
-        test_one_div(4, 3);
-        test_one_div(100, 3);
-        test_one_div(100, 350);
-        test_one_div(10, 5000);
-        test_one_div(10098, 594);
-        test_one_div(10099, 594);
-        test_one_div(10097, 594);
-        test_one_div(5000, 5000);
-        test_one_div(32600, 32600);
-        test_one_div(2, -2);
-        test_one_div(4, -2);
-        test_one_div(-4, -3);
-        test_one_div(0, 5082);
+    #[rstest]
+    #[case(4, 3)]
+    #[case(100, 3)]
+    #[case(10000, 3)]
+    #[case(10000, 1)]
+    #[case(5000, 1000)]
+    #[case(100, 350)]
+    #[case(10, 5000)]
+    #[case(10098, 594)]
+    #[case(10099, 594)]
+    #[case(10097, 594)]
+    #[case(13, 2)]
+    #[case(13, 6)]
+    #[case(2382, 124)]
+    #[case(5000, 5000)]
+    #[case(32600, 32600)]
+    #[case(2, -2)]
+    #[case(4, -2)]
+    #[case(-4, -3)]
+    #[case(0, 5082)]
+    fn test_div(#[case] x: i16, #[case] y: i16) {
+        let xi = Number::from(x);
+        let yi = Number::from(y);
+
+        let mut result = xi;
+        result.do_div(&yi);
+
+        let actual = result.to_f64();
+        let expected = f64::from(x) / f64::from(y);
+
+        assert!(
+            f64::abs(result.to_f64() - f64::from(x) / f64::from(y)) <= 0.01,
+            "{} / {} = {} but got {}",
+            x,
+            y,
+            expected,
+            actual
+        );
     }
 
     #[test]
@@ -339,16 +328,27 @@ mod test {
         assert_eq!(x.to_f64(), 30000f64);
     }
 
-    #[test]
-    fn test_sqrt() {
-        test_one_sqrt(Number::from(0));
-        test_one_sqrt(Number::from(1));
-        test_one_sqrt(Number::from(9));
-        test_one_sqrt(Number::from(15));
-        test_one_sqrt(Number::from(144));
-        test_one_sqrt(Number::from(147));
-        test_one_sqrt(Number::from(256));
-        test_one_sqrt(Number::from(1024));
-        test_one_sqrt(Number::from(1024));
+    #[rstest]
+    #[case(0)]
+    #[case(1)]
+    #[case(9)]
+    #[case(15)]
+    #[case(144)]
+    #[case(147)]
+    #[case(256)]
+    #[case(1024)]
+    fn test_sqrt(#[case] x: i16) {
+        let mut result = Number::from(x);
+        result.do_sqrt();
+        let actual = result.to_f64();
+        let expected = f64::sqrt(f64::from(x));
+
+        assert!(
+            f64::abs(actual - expected) / (expected + 0.001) <= 0.01,
+            "sqrt({}) = {} but got {}",
+            x,
+            expected,
+            actual
+        );
     }
 }

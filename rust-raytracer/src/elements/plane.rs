@@ -53,17 +53,17 @@ impl Element for Plane {
             let mut y_axis = self.normal;
             y_axis.do_cross(&x_axis);
 
-            let SCALE = Number::from(1);
+            let scale = Number::from(1);
 
             let x = {
                 let mut v = hit_point.dot(&x_axis);
-                v.do_mul(&SCALE);
+                v.do_mul(&scale);
                 v.do_add(&Number::from(1000));
                 v.to_int32()
             };
             let y = {
                 let mut v = hit_point.dot(&y_axis);
-                v.do_mul(&SCALE);
+                v.do_mul(&scale);
                 v.do_add(&Number::from(1000));
                 v.to_int32()
             };
