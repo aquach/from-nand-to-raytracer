@@ -1,0 +1,719 @@
+class Int32 {
+  field Array parts;
+
+  // Jack doesn't have these, so we need to reimplement them.
+  function int arith_rightshift(int x, int n) {
+    var int r;
+    var int i;
+    var int divided;
+    let r = x;
+
+    let i = 0;
+    while (i < n) {
+      let divided = r / 2;
+      if ((r < 0) & ~((divided * 2) = r)) {
+        let r = divided - 1;
+      } else {
+        let r = divided;
+      }
+
+      let i = i + 1;
+    }
+
+    return r;
+  }
+
+  function int leftshift(int x, int n) {
+    var int r;
+    var int i;
+
+    let r = x;
+
+    let i = 0;
+    while (i < n) {
+      let r = r * 2;
+      let i = i + 1;
+    }
+
+    return r;
+  }
+
+  // Top 12 bits of each int should be empty.
+  // It should really be u8 but we're simulating Jack which only has int.
+  function Array u4_array_mul_u4_array(Array u, Array v) {
+    var Array w;
+    var int j;
+    var int k;
+    var int i;
+    var int t;
+    let w = Array.new(16);
+
+    while (j < 8) {
+      let k = 0;
+
+      let i = 0;
+      while (i < 8) {
+        // Perform signed 16-bit math that will never overflow because we only put u4s into it!
+        // u4 * u4 = u8, which fits in a int.
+        // We can't do use u8s because u8 * u8 = u16 and u16s don't fit in int.
+        let t = (u[i] * v[j]) + w[i + j] + k;
+        let w[i + j] = t & 15;
+        let k = Int32.arith_rightshift(t, 4);
+
+        let i = i + 1;
+      }
+      let w[j + 8] = k;
+
+      let j = j + 1;
+    }
+
+    return w;
+  }
+
+  // Number of leading zeros of x, pretending that it's a u4.
+  function int nlz_u4(int x) {
+    var int r;
+    var int shift;
+    let r = 0;
+
+    let shift = 3;
+    while ((shift > 0) | (shift = 0)) {
+      if (Int32.arith_rightshift(x, shift) = 0) {
+        let r = r + 1;
+      } else {
+        let shift = -1;
+      }
+
+      let shift = shift - 1;
+    }
+
+    return r;
+  }
+
+  function void printArray(Array u, int len) {
+    var int i;
+
+    let i = 0;
+    while (i < len) {
+      do Output.printInt(u[i]);
+      do Output.printString(" ");
+
+      let i = i + 1;
+    }
+
+    do Output.println();
+
+    return;
+  }
+
+  /* // Upper 12 bits of each int are empty. */
+  function Array u4_array_div_u4_array(Array u, Array v, int v_size) {
+    var int base;
+    var int i;
+    var int j;
+    var int k;
+    var int val;
+    var int shift;
+    var Array q;
+    var Array vn;
+    var Array dividend;
+    var int qhat;
+    var int rhat;
+    var boolean should_break;
+    var int carry;
+    var int multiplied;
+    var int t;
+
+    let base = 16; // Each chunk is 4 bits.
+
+    let q = Array.new(16);
+
+    if (v_size = 1) {
+      // Simple algorithm for one-chunk divisor.
+
+      // Rolling remainder.
+      let k = 0;
+      let j = 15;
+      while ((j > 0) | (j = 0)) {
+        let val = (k * base) + u[j];
+        let q[j] = val / v[0];
+        let k = val - (q[j] * v[0]);
+
+        let j = j - 1;
+      }
+      return q;
+    }
+
+    // Shift divisor so that high bit is set.
+    let shift = Int32.nlz_u4(v[v_size - 1]);
+
+    let vn = Array.new(8);
+
+    let i = v_size - 1;
+    while ((i > 1) | (i = 1)) {
+      let vn[i] = (Int32.leftshift(v[i], shift) | Int32.arith_rightshift(v[i - 1], 4 - shift)) & 15;
+
+      let i = i - 1;
+    }
+
+    let vn[0] = Int32.leftshift(v[0], shift) & 15;
+
+    let dividend = Array.new(17);
+    let dividend[16] = Int32.arith_rightshift(u[15], 4 - shift);
+    let i = 15;
+    while ((i > 1) | (i = 1)) {
+      let dividend[i] = (Int32.leftshift(u[i], shift) | Int32.arith_rightshift(u[i - 1], 4 - shift)) & 15;
+
+      let i = i - 1;
+    }
+    let dividend[0] = Int32.leftshift(u[0], shift) & 15;
+
+    // Crank out the quotient one digit at a time, from most significant to least.
+    let j = 16 - v_size;
+    while ((j > 0) | (j = 0)) {
+      // Compute estimate qhat of q[j].
+      let val = (dividend[j + v_size] * base) + dividend[j + v_size - 1];
+      let qhat = val / vn[v_size - 1];
+      let rhat = val - (qhat * vn[v_size - 1]);
+
+      let should_break = false;
+      while (~should_break) {
+        let should_break = true;
+
+        if ((qhat > base) | (qhat = base) | ((qhat * vn[v_size - 2]) > ((base * rhat) + dividend[j + v_size - 2]))) {
+          let qhat = qhat - 1;
+          let rhat = rhat + vn[v_size - 1];
+          if (rhat < base) {
+            let should_break = false;
+          }
+        }
+      }
+
+      // Multiply and subtract.
+      let carry = 0;
+
+      let i = 0;
+      while (i < v_size) {
+        let multiplied = qhat * vn[i];
+        let t = (dividend[i + j] - carry) - (multiplied & 15);
+
+        // Simulate wrap-around math. We track the carry below independently.
+        let dividend[i + j] = t & 15;
+
+        let carry = Int32.arith_rightshift(multiplied, 4) - Int32.arith_rightshift(t, 4);
+
+        let i = i + 1;
+      }
+
+      let t = dividend[j + v_size] - carry;
+      let dividend[j + v_size] = t;
+
+      let q[j] = qhat;
+
+      if (t < 0) {
+        let carry = 0;
+        let q[j] = q[j] - 1;
+
+        let i = 0;
+        while (i < v_size) {
+          let t = dividend[i + j] + vn[i] + carry;
+          let dividend[i + j] = t & 15;
+          let carry = Int32.arith_rightshift(t, 4);
+
+          let i = i + 1;
+        }
+        let dividend[j + v_size] = dividend[j + v_size] + carry;
+      }
+
+      let j = j - 1;
+    }
+
+    do vn.dispose();
+    do dividend.dispose();
+
+    return q;
+  }
+
+  constructor Int32 new(int i) {
+    var int i_low;
+    var int i_high;
+    var int smear;
+
+    let i_low = i & 255;
+    let i_high = Int32.arith_rightshift(i, 8) & 255;
+    if (i < 0) {
+      let smear = 255;
+    } else {
+      let smear = 0;
+    }
+
+    let parts = Array.new(4);
+
+    let parts[0] = i_low;
+    let parts[1] = i_high;
+    let parts[2] = smear;
+    let parts[3] = smear;
+
+    return this;
+  }
+
+  constructor Int32 new_from_parts(Array p) {
+    let parts = p;
+    return this;
+  }
+
+  method Array getParts() {
+    return parts;
+  }
+
+  method void do_add(Int32 other) {
+    var Array other_parts;
+    let other_parts = other.getParts();
+
+    let parts[0] = parts[0] + other_parts[0];
+    let parts[1] = parts[1] + other_parts[1];
+    let parts[2] = parts[2] + other_parts[2];
+    let parts[3] = parts[3] + other_parts[3];
+
+    while ((parts[0] > 256) | (parts[0] = 256)) {
+      let parts[0] = parts[0] - 256;
+      let parts[1] = parts[1] + 1;
+    }
+
+    while ((parts[1] > 256) | (parts[1] = 256)) {
+      let parts[1] = parts[1] - 256;
+      let parts[2] = parts[2] + 1;
+    }
+
+    while ((parts[2] > 256) | (parts[2] = 256)) {
+      let parts[2] = parts[2] - 256;
+      let parts[3] = parts[3] + 1;
+    }
+
+    while ((parts[3] > 256) | (parts[3] = 256)) {
+      let parts[3] = parts[3] - 256;
+    }
+
+    return;
+  }
+
+  method Int32 clone() {
+    var Array new_parts;
+    let new_parts = Array.new(4);
+
+    let new_parts[0] = parts[0];
+    let new_parts[1] = parts[1];
+    let new_parts[2] = parts[2];
+    let new_parts[3] = parts[3];
+
+    return Int32.new_from_parts(new_parts);
+  }
+
+  method void dispose() {
+    do Memory.deAlloc(parts);
+    do Memory.deAlloc(this);
+    return;
+  }
+
+  method void do_sub(Int32 other) {
+    var Int32 neg;
+    let neg = other.clone();
+    do neg.do_neg();
+    do do_add(neg);
+    do neg.dispose();
+    return;
+  }
+
+  method void do_mul(Int32 other) {
+    do do_mul_right_shift_bytes(other, 0);
+    return;
+  }
+
+  method void do_right_shift_bytes(int bytes) {
+    var boolean is_neg;
+
+    if ((bytes < 0) | (bytes = 0)) {
+      return;
+    }
+
+    let is_neg = is_negative();
+    if (is_neg) {
+      do do_neg();
+    }
+
+    let parts[0] = parts[bytes];
+    if (bytes < 3) {
+      let parts[1] = parts[bytes + 1];
+    } else {
+      let parts[1] = 0;
+    }
+    if (bytes < 2) {
+      let parts[2] = parts[bytes + 2];
+    } else {
+      let parts[2] = 0;
+    }
+
+    let parts[3] = 0;
+
+    if (is_neg) {
+      do do_neg();
+    }
+
+    return;
+  }
+
+  method void do_left_shift_bytes(int bytes) {
+    if ((bytes < 0) | (bytes = 0)) {
+      return;
+    }
+
+    let parts[3] = parts[3 - bytes];
+    if (bytes < 3) {
+      let parts[2] = parts[2 - bytes];
+    } else {
+      let parts[2] = 0;
+    }
+    if (bytes < 2) {
+      let parts[1] = parts[1 - bytes];
+    } else {
+      let parts[1] = 0;
+    }
+    let parts[0] = 0;
+
+    return;
+  }
+
+  function boolean xor(boolean x, boolean y) {
+    if (x & (~y)) {
+      return true;
+    }
+    if (y & (~x)) {
+      return true;
+    }
+    return false;
+  }
+
+
+  method void do_mul_right_shift_bytes(Int32 other, int right_shift_bytes) {
+    var Array self_parts;
+    var Array other_parts;
+    var Int32 abs;
+    var boolean is_result_neg;
+
+    var Array self_parts_expanded;
+    var Array other_parts_expanded;
+    var Array result;
+
+    let is_result_neg = Int32.xor(is_negative(), other.is_negative());
+
+    if (is_negative()) {
+      let abs = clone();
+      do abs.do_abs();
+      let self_parts = abs.getParts();
+    } else {
+      let self_parts = parts;
+    }
+
+    if (other.is_negative()) {
+      let abs = other.clone();
+      do abs.do_abs();
+      let other_parts = abs.getParts();
+    } else {
+      let other_parts = other.getParts();
+    }
+
+    let self_parts_expanded = Array.new(8);
+    let self_parts_expanded[0] = self_parts[0] & 15;
+    let self_parts_expanded[1] = Int32.arith_rightshift(self_parts[0], 4);
+    let self_parts_expanded[2] = self_parts[1] & 15;
+    let self_parts_expanded[3] = Int32.arith_rightshift(self_parts[1], 4);
+    let self_parts_expanded[4] = self_parts[2] & 15;
+    let self_parts_expanded[5] = Int32.arith_rightshift(self_parts[2], 4);
+    let self_parts_expanded[6] = self_parts[3] & 15;
+    let self_parts_expanded[7] = Int32.arith_rightshift(self_parts[3], 4);
+
+    let other_parts_expanded = Array.new(8);
+    let other_parts_expanded[0] = other_parts[0] & 15;
+    let other_parts_expanded[1] = Int32.arith_rightshift(other_parts[0], 4);
+    let other_parts_expanded[2] = other_parts[1] & 15;
+    let other_parts_expanded[3] = Int32.arith_rightshift(other_parts[1], 4);
+    let other_parts_expanded[4] = other_parts[2] & 15;
+    let other_parts_expanded[5] = Int32.arith_rightshift(other_parts[2], 4);
+    let other_parts_expanded[6] = other_parts[3] & 15;
+    let other_parts_expanded[7] = Int32.arith_rightshift(other_parts[3], 4);
+
+    let result = Int32.u4_array_mul_u4_array(self_parts_expanded, other_parts_expanded);
+
+    let parts[0] =
+      result[(right_shift_bytes * 2) + 0] + (result[(right_shift_bytes * 2) + 1] * 16);
+    let parts[1] =
+      result[(right_shift_bytes * 2) + 2] + (result[(right_shift_bytes * 2) + 3] * 16);
+    let parts[2] =
+      result[(right_shift_bytes * 2) + 4] + (result[(right_shift_bytes * 2) + 5] * 16);
+    let parts[3] =
+      result[(right_shift_bytes * 2) + 6] + (result[(right_shift_bytes * 2) + 7] * 16);
+
+    if (is_result_neg) {
+      do do_neg();
+    }
+
+    if (~(abs = null)) {
+      do abs.dispose();
+    }
+
+    do self_parts_expanded.dispose();
+    do other_parts_expanded.dispose();
+    do result.dispose();
+
+    return;
+  }
+
+  method void do_div(Int32 other) {
+    do do_left_shift_bytes_div(0, other);
+    return;
+  }
+
+  method void do_left_shift_bytes_div(int left_shift_bytes, Int32 other) {
+    var Array self_parts;
+    var Array other_parts;
+
+    var Int32 abs;
+    var boolean is_result_neg;
+
+    var Array self_parts_shifted;
+
+    var Array self_parts_expanded;
+    var Array other_parts_expanded;
+
+    var int divisor_size;
+    var int i;
+
+    var Array result;
+
+    let is_result_neg = Int32.xor(is_negative(), other.is_negative());
+
+    if (is_negative()) {
+      let abs = clone();
+      do abs.do_abs();
+      let self_parts = abs.getParts();
+    } else {
+      let self_parts = parts;
+    }
+
+    if (other.is_negative()) {
+      let abs = other.clone();
+      do abs.do_abs();
+      let other_parts = abs.getParts();
+    } else {
+      let other_parts = other.getParts();
+    }
+
+    let self_parts_shifted = Array.new(8);
+    if (left_shift_bytes = 0) {
+      let self_parts_shifted[0] = self_parts[0 - left_shift_bytes];
+    } else {
+      let self_parts_shifted[0] = 0;
+    }
+    if (left_shift_bytes < 2) {
+      let self_parts_shifted[1] = self_parts[1 - left_shift_bytes];
+    } else {
+      let self_parts_shifted[1] = 0;
+    }
+    if (left_shift_bytes < 3) {
+      let self_parts_shifted[2] = self_parts[2 - left_shift_bytes];
+    } else {
+      let self_parts_shifted[2] = 0;
+    }
+    if (left_shift_bytes < 4) {
+      let self_parts_shifted[3] = self_parts[3 - left_shift_bytes];
+    } else {
+      let self_parts_shifted[3] = 0;
+    }
+    if (left_shift_bytes > 0) {
+      let self_parts_shifted[4] = self_parts[4 - left_shift_bytes];
+    } else {
+      let self_parts_shifted[4] = 0;
+    }
+    if (left_shift_bytes > 1) {
+      let self_parts_shifted[5] = self_parts[5 - left_shift_bytes];
+    } else {
+      let self_parts_shifted[5] = 0;
+    }
+    if (left_shift_bytes > 2) {
+      let self_parts_shifted[6] = self_parts[6 - left_shift_bytes];
+    } else {
+      let self_parts_shifted[6] = 0;
+    }
+    let self_parts_shifted[7] = 0;
+
+    let self_parts_expanded = Array.new(16);
+    let self_parts_expanded[0] = self_parts_shifted[0] & 15;
+    let self_parts_expanded[1] = Int32.arith_rightshift(self_parts_shifted[0], 4);
+    let self_parts_expanded[2] = self_parts_shifted[1] & 15;
+    let self_parts_expanded[3] = Int32.arith_rightshift(self_parts_shifted[1], 4);
+    let self_parts_expanded[4] = self_parts_shifted[2] & 15;
+    let self_parts_expanded[5] = Int32.arith_rightshift(self_parts_shifted[2], 4);
+    let self_parts_expanded[6] = self_parts_shifted[3] & 15;
+    let self_parts_expanded[7] = Int32.arith_rightshift(self_parts_shifted[3], 4);
+    let self_parts_expanded[8] = self_parts_shifted[4] & 15;
+    let self_parts_expanded[9] = Int32.arith_rightshift(self_parts_shifted[4], 4);
+    let self_parts_expanded[10] = self_parts_shifted[5] & 15;
+    let self_parts_expanded[11] = Int32.arith_rightshift(self_parts_shifted[5], 4);
+    let self_parts_expanded[12] = self_parts_shifted[6] & 15;
+    let self_parts_expanded[13] = Int32.arith_rightshift(self_parts_shifted[6], 4);
+    let self_parts_expanded[14] = self_parts_shifted[7] & 15;
+    let self_parts_expanded[15] = Int32.arith_rightshift(self_parts_shifted[7], 4);
+
+    let other_parts_expanded = Array.new(8);
+    let other_parts_expanded[0] = other_parts[0] & 15;
+    let other_parts_expanded[1] = Int32.arith_rightshift(other_parts[0], 4);
+    let other_parts_expanded[2] = other_parts[1] & 15;
+    let other_parts_expanded[3] = Int32.arith_rightshift(other_parts[1], 4);
+    let other_parts_expanded[4] = other_parts[2] & 15;
+    let other_parts_expanded[5] = Int32.arith_rightshift(other_parts[2], 4);
+    let other_parts_expanded[6] = other_parts[3] & 15;
+    let other_parts_expanded[7] = Int32.arith_rightshift(other_parts[3], 4);
+
+    let divisor_size = 255;
+
+    let i = 7;
+    while ((i > 0) | (i = 0)) {
+      if (other_parts_expanded[i] > 0) {
+        let divisor_size = i + 1;
+        let i = -1; // break
+      }
+      let i = i - 1;
+    }
+
+    let result =
+      Int32.u4_array_div_u4_array(self_parts_expanded, other_parts_expanded, divisor_size);
+
+    let parts[0] = result[0] + (result[1] * 16);
+    let parts[1] = result[2] + (result[3] * 16);
+    let parts[2] = result[4] + (result[5] * 16);
+    let parts[3] = result[6] + (result[7] * 16);
+
+    if (is_result_neg) {
+      do do_neg();
+    }
+
+    if (~(abs = null)) {
+      do abs.dispose();
+    }
+
+    do self_parts_shifted.dispose();
+    do self_parts_expanded.dispose();
+    do other_parts_expanded.dispose();
+    do result.dispose();
+
+    return;
+  }
+
+  method void do_abs() {
+    if (is_negative()) {
+      do do_neg();
+    }
+    return;
+  }
+
+  method void do_sqrt() {
+    var Int32 x;
+    var Int32 two;
+    var Int32 inv;
+    var int i;
+    var Array x_parts;
+
+    if (is_zero()) {
+      return;
+    }
+
+    let two = Int32.new(2);
+
+    let x = Int32.new(5);
+    let i = 0;
+    while (i < 20) {
+      let inv = clone();
+      do inv.do_div(x);
+
+      do x.do_add(inv);
+      do x.do_div(two);
+
+      do inv.dispose();
+
+      let i = i + 1;
+    }
+
+    let x_parts = x.getParts();
+    let parts[0] = x_parts[0];
+    let parts[1] = x_parts[1];
+    let parts[2] = x_parts[2];
+    let parts[3] = x_parts[3];
+
+    do two.dispose();
+    do x.dispose();
+
+    return;
+  }
+
+  method void do_neg() {
+    let parts[0] = (~parts[0]) & 255;
+    let parts[1] = (~parts[1]) & 255;
+    let parts[2] = (~parts[2]) & 255;
+    let parts[3] = (~parts[3]) & 255;
+    let parts[0] = parts[0] + 1;
+
+    if ((parts[0] > 256) | (parts[0] = 256)) {
+      let parts[0] = parts[0] - 256;
+      let parts[1] = parts[1] + 1;
+    }
+
+    if ((parts[1] > 256) | (parts[1] = 256)) {
+      let parts[1] = parts[1] - 256;
+      let parts[2] = parts[2] + 1;
+    }
+
+    if ((parts[2] > 256) | (parts[2] = 256)) {
+      let parts[2] = parts[2] - 256;
+      let parts[3] = parts[3] + 1;
+    }
+
+    if ((parts[3] > 256) | (parts[3] = 256)) {
+      let parts[3] = parts[3] - 256;
+    }
+
+    return;
+  }
+
+  method boolean is_zero() {
+    return (parts[0] = 0) & (parts[1] = 0) & (parts[2] = 0) & (parts[3] = 0);
+  }
+
+  method boolean is_negative()  {
+    return Int32.arith_rightshift(parts[3], 7) = 1;
+  }
+
+  method boolean is_positive()  {
+    return (~is_zero()) & (Int32.arith_rightshift(parts[3], 7) = 0);
+  }
+
+  method int cmp(Int32 other) {
+    var Int32 r;
+    var int x;
+    let r = clone();
+    do r.do_sub(other);
+
+    if (r.is_zero()) {
+      let x = 0;
+    } else {
+      if (r.is_negative()) {
+        let x = -1;
+      } else {
+        let x = 1;
+      }
+    }
+
+    do r.dispose();
+
+    return x;
+  }
+}

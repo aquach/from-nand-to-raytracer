@@ -1,8 +1,0 @@
-class Main {
-   function void main() {
-      do Output.printInt(1);
-      do Output.printInt(32626 * 2);
-      do Output.printInt(32626 + 10000);
-      return;
-   }
-}

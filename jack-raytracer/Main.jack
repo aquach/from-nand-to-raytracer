@@ -1,0 +1,44 @@
+class Main {
+  function void main() {
+    var Int32 x;
+    var Int32 y;
+    var Array parts;
+    let x = Int32.new(30182);
+    let y = Int32.new(483);
+
+    /* let parts = x.getParts(); */
+    /* do Output.printInt(parts[0]); */
+    /* do Output.println(); */
+    /* do Output.printInt(parts[1]); */
+    /* do Output.println(); */
+    /* do Output.printInt(parts[2]); */
+    /* do Output.println(); */
+    /* do Output.printInt(parts[3]); */
+
+    /* do Output.println(); */
+    /* do Output.println(); */
+
+    /* let parts = y.getParts(); */
+    /* do Output.printInt(parts[0]); */
+    /* do Output.println(); */
+    /* do Output.printInt(parts[1]); */
+    /* do Output.println(); */
+    /* do Output.printInt(parts[2]); */
+    /* do Output.println(); */
+    /* do Output.printInt(parts[3]); */
+
+    /* do Output.println(); */
+    /* do Output.println(); */
+
+    do x.do_sqrt();
+    let parts = x.getParts();
+    do Output.printInt(parts[0]);
+    do Output.println();
+    do Output.printInt(parts[1]);
+    do Output.println();
+    do Output.printInt(parts[2]);
+    do Output.println();
+    do Output.printInt(parts[3]);
+    return;
+  }
+}
