@@ -1,0 +1,132 @@
+class Number {
+  field Int32 v;
+  static int BYTES_FOR_FRAC;
+  static Int32 SCALE_FACTOR;
+  static Int32 PI;
+
+  function Int32 getPi() {
+    return PI;
+  }
+
+  function void initialize() {
+    var Int32 t;
+
+    let BYTES_FOR_FRAC = 2;
+
+    let SCALE_FACTOR = Int32.new(256);
+    do SCALE_FACTOR.do_mul(SCALE_FACTOR);
+
+    let PI = Int32.new(561);
+    let t = Int32.new(367);
+    do PI.do_mul(t);
+
+    do t.dispose();
+
+    return;
+  }
+
+  constructor Number new(int i) {
+    let v = Int32.new(i);
+    do v.do_left_shift_bytes(BYTES_FOR_FRAC);
+    return this;
+  }
+
+  constructor Number new_from_int32(Int32 i) {
+    let v = i;
+    return this;
+  }
+
+  method void dispose() {
+    do v.dispose();
+    return;
+  }
+
+  method Number clone() {
+    return Number.new_from_int32(v.clone());
+  }
+
+  method Int32 getV() {
+    return v;
+  }
+
+  method boolean is_zero() {
+    return v.is_zero();
+  }
+
+  method boolean is_negative() {
+    return v.is_negative();
+  }
+
+  method boolean is_positive() {
+    return v.is_positive();
+  }
+
+  method void do_add(Number other) {
+    do v.do_add(other.getV());
+    return;
+  }
+
+  method void do_sub(Number other) {
+    do v.do_sub(other.getV());
+    return;
+  }
+
+  method void do_mul(Number other) {
+    do v.do_mul_right_shift_bytes(other.getV(), BYTES_FOR_FRAC);
+    return;
+  }
+
+  method void do_div(Number other) {
+    do v.do_left_shift_bytes_div(BYTES_FOR_FRAC, other.getV());
+    return;
+  }
+
+  method void do_sqrt() {
+    var Number sqrt_s;
+    var Number sqrt_sqrt_s;
+    var Number sqrt_sqrt_sqrt_s;
+
+    let sqrt_s = SCALE_FACTOR.clone();
+    do sqrt_s.do_sqrt();
+
+    let sqrt_sqrt_s = sqrt_s.clone();
+    do sqrt_sqrt_s.do_sqrt();
+
+    let sqrt_sqrt_sqrt_s = sqrt_sqrt_s.clone();
+    do sqrt_sqrt_sqrt_s.do_sqrt();
+
+    do v.do_mul(sqrt_sqrt_s);
+    do v.do_sqrt();
+    do v.do_mul(sqrt_sqrt_sqrt_s);
+    do v.do_mul(sqrt_sqrt_sqrt_s);
+    do v.do_mul(sqrt_sqrt_sqrt_s);
+
+    do sqrt_s.dispose();
+    do sqrt_sqrt_s.dispose();
+    do sqrt_sqrt_sqrt_s.dispose();
+
+    return;
+  }
+
+  method void do_neg() {
+    do v.do_neg();
+    return;
+  }
+
+  method void do_abs() {
+    do v.do_abs();
+    return;
+  }
+
+  method int cmp(Number other)  {
+    return v.cmp(other.getV());
+  }
+
+  method boolean is_less_than(Number other)  {
+    return v.cmp(other.getV()) < 0;
+  }
+
+  method Array getParts() {
+    return v.getParts();
+  }
+}
