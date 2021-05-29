@@ -1,0 +1,98 @@
+class Sphere {
+    field Vec3 center;
+    field Number radius;
+    field Number color;
+
+    constructor Sphere new(Vec3 c, Number r, Number co) {
+      let center = c;
+      let radius = r;
+      let color = co;
+      return this;
+    }
+
+    method void dispose() {
+      do center.dispose();
+      do radius.dispose();
+      do color.dispose();
+      do Memory.deAlloc(this);
+      return;
+    }
+
+    method Number intersect(Ray ray) {
+      var Vec3 to_center;
+      var Number projected_onto_ray_dist;
+      var Number projected_onto_ray_dist_sq;
+      var Number radius_sq;
+      var Number opposite_sq;
+      var Number thickness;
+      var Number t0;
+      var Number t1;
+
+      let to_center = center.clone();
+      do to_center.do_sub(ray.getOrigin());
+
+      let projected_onto_ray_dist = to_center.dot(ray.getDirection());
+      let projected_onto_ray_dist_sq = projected_onto_ray_dist;
+      do projected_onto_ray_dist_sq.do_mul(projected_onto_ray_dist);
+
+      let radius_sq = radius;
+      do radius_sq.do_mul(radius);
+
+      let opposite_sq = to_center.dist_sq();
+      do opposite_sq.do_sub(projected_onto_ray_dist_sq);
+
+      if (opposite_sq.cmp(radius_sq) > 0) {
+        do to_center.dispose();
+        do projected_onto_ray_dist.dispose();
+        do projected_onto_ray_dist_sq.dispose();
+        do radius_sq.dispose();
+        do opposite_sq.dispose();
+
+        return Number.new(-1);
+      }
+
+      let thickness = radius_sq.clone();
+      do thickness.do_sub(opposite_sq);
+      do thickness.do_sqrt();
+
+      let t0 = projected_onto_ray_dist.clone();
+      do t0.do_sub(thickness);
+
+      let t1 = projected_onto_ray_dist.clone();
+      do t1.do_add(thickness);
+
+      do to_center.dispose();
+      do projected_onto_ray_dist.dispose();
+      do projected_onto_ray_dist_sq.dispose();
+      do radius_sq.dispose();
+      do opposite_sq.dispose();
+      do thickness.dispose();
+
+      if (t0.is_negative() & t1.is_negative()) {
+        do t0.dispose();
+        do t1.dispose();
+        return Number.new(-1);
+      }
+
+      if (t0.is_less_than(t1)) {
+        do t1.dispose();
+        return t0;
+      } else {
+        do t0.dispose();
+        return t1;
+      }
+    }
+
+    method Number color() {
+        return color;
+    }
+
+    method Vec3 surface_normal(Vec3 hit_point) {
+        var Vec3 n;
+
+        let n = hit_point.clone();
+        do n.do_sub(center);
+        do n.do_normalize();
+        return n;
+    }
+}

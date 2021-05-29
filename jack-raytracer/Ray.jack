@@ -1,0 +1,25 @@
+class Ray {
+    field Vec3 origin;
+    field Vec3 direction;
+
+    constructor Ray new(Vec3 o, Vec3 d) {
+      let origin = o;
+      let direction = d;
+      return this;
+    }
+
+    method void dispose() {
+      do origin.dispose();
+      do direction.dispose();
+      do Memory.deAlloc(this);
+      return;
+    }
+
+    method Vec3 getOrigin() {
+      return origin;
+    }
+
+    method Vec3 getDirection() {
+      return direction;
+    }
+}

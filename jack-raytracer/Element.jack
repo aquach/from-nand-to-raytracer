@@ -1,0 +1,55 @@
+class Element {
+    field Plane plane;
+    field Sphere sphere;
+
+    constructor Element plane(Plane p) {
+      let plane = p;
+      return this;
+    }
+
+    constructor Element sphere(Sphere s) {
+      let sphere = s;
+      return this;
+    }
+
+    method void dispose() {
+      if (~(plane = null)) {
+        do plane.dispose();
+      }
+      if (~(sphere = null)) {
+        do sphere.dispose();
+      }
+      do Memory.deAlloc(this);
+      return;
+    }
+
+    method Number intersect(Ray ray) {
+      if (~(plane = null)) {
+        return plane.intersect(ray);
+      }
+      if (~(sphere = null)) {
+        return sphere.intersect(ray);
+      }
+      return null;
+    }
+
+    method Vec3 color(Vec3 hit_point) {
+      if (~(plane = null)) {
+        return plane.color(hit_point);
+      }
+      if (~(sphere = null)) {
+        return sphere.color();
+      }
+      return null;
+    }
+
+    method Vec3 surface_normal(Vec3 hit_point) {
+      if (~(plane = null)) {
+        return plane.surface_normal();
+      }
+      if (~(sphere = null)) {
+        return sphere.surface_normal(hit_point);
+      }
+      return null;
+    }
+}

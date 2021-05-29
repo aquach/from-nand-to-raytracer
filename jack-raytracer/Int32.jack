@@ -310,7 +310,7 @@ class Int32 {
   }
 
   method void dispose() {
-    do Memory.deAlloc(parts);
+    do parts.dispose();
     do Memory.deAlloc(this);
     return;
   }
@@ -631,6 +631,7 @@ class Int32 {
 
     let x = Int32.new(5);
     let i = 0;
+
     while (i < 20) {
       let inv = clone();
       do inv.do_div(x);
@@ -715,5 +716,14 @@ class Int32 {
     do r.dispose();
 
     return x;
+  }
+
+  method void do_zero() {
+    let parts[0] = 0;
+    let parts[1] = 0;
+    let parts[2] = 0;
+    let parts[3] = 0;
+
+    return;
   }
 }

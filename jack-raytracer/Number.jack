@@ -38,6 +38,7 @@ class Number {
 
   method void dispose() {
     do v.dispose();
+    do Memory.deAlloc(this);
     return;
   }
 
@@ -82,9 +83,9 @@ class Number {
   }
 
   method void do_sqrt() {
-    var Number sqrt_s;
-    var Number sqrt_sqrt_s;
-    var Number sqrt_sqrt_sqrt_s;
+    var Int32 sqrt_s;
+    var Int32 sqrt_sqrt_s;
+    var Int32 sqrt_sqrt_sqrt_s;
 
     let sqrt_s = SCALE_FACTOR.clone();
     do sqrt_s.do_sqrt();
@@ -128,5 +129,16 @@ class Number {
 
   method Array getParts() {
     return v.getParts();
+  }
+
+  method Int32 to_int32() {
+    do v.do_right_shift_bytes(BYTES_FOR_FRAC);
+    do Memory.deAlloc(this);
+    return v;
+  }
+
+  method void do_zero() {
+    do v.do_zero();
+    return;
   }
 }

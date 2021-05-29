@@ -1,0 +1,164 @@
+class Vec3 {
+    field Number x;
+    field Number y;
+    field Number z;
+
+    constructor Vec3 new(Number nx, Number ny, Number nz) {
+      let x = nx;
+      let y = ny;
+      let z = nz;
+
+      return this;
+    }
+
+    method void dispose() {
+      do x.dispose();
+      do y.dispose();
+      do z.dispose();
+      do Memory.deAlloc(this);
+      return;
+    }
+
+    method Vec3 clone() {
+      return Vec3.new(x.clone(), y.clone(), z.clone());
+    }
+
+    method void do_normalize() {
+        var Number nx;
+        var Number ny;
+        var Number nz;
+
+        let nx = x.clone();
+        do nx.do_mul(x);
+
+        let ny = y.clone();
+        do ny.do_mul(y);
+
+        let nz = z.clone();
+        do nz.do_mul(z);
+
+        do nx.do_add(ny);
+        do nx.do_add(nz);
+
+        do nx.do_sqrt();
+
+        do x.do_div(nx);
+        do y.do_div(nx);
+        do z.do_div(nx);
+
+        do x.dispose();
+        do y.dispose();
+        do z.dispose();
+
+        return;
+    }
+
+    method Number getX() {
+      return x;
+    }
+
+    method Number getY() {
+      return y;
+    }
+
+    method Number getZ() {
+      return z;
+    }
+
+    method void do_add(Vec3 other) {
+        do x.do_add(other.getX());
+        do y.do_add(other.getY());
+        do z.do_add(other.getZ());
+
+        return;
+    }
+
+    method void do_scale(Number s) {
+        do x.do_mul(s);
+        do y.do_mul(s);
+        do z.do_mul(s);
+
+        return;
+    }
+
+    method void do_sub(Vec3 other) {
+        do x.do_sub(other.getX());
+        do y.do_sub(other.getY());
+        do z.do_sub(other.getZ());
+        return;
+    }
+
+    method Number dist_sq() {
+        return dot(this);
+    }
+
+    method Number dot(Vec3 other) {
+        var Number xx;
+        var Number yy;
+        var Number zz;
+
+        let xx = x.clone();
+        do xx.do_mul(other.getX());
+
+        let yy = y.clone();
+        do yy.do_mul(other.getY());
+
+        let zz = z.clone();
+        do zz.do_mul(other.getZ());
+
+        do xx.do_add(yy);
+        do xx.do_add(zz);
+
+        do yy.dispose();
+        do zz.dispose();
+
+        return xx;
+    }
+
+    method void do_cross(Vec3 other) {
+        var Number x1;
+        var Number x2;
+        var Number y1;
+        var Number y2;
+        var Number z1;
+        var Number z2;
+
+        let x1 = y.clone();
+        do x1.do_mul(other.getZ());
+
+        let x2 = z.clone();
+        do x2.do_mul(other.getY());
+
+        do x1.do_sub(x2);
+
+        let y1 = z.clone();
+        do y1.do_mul(other.getX());
+
+        let y2 = x.clone();
+        do y2.do_mul(other.getZ());
+
+        do y1.do_sub(y2);
+
+        let z1 = x.clone();
+        do z1.do_mul(other.getY());
+
+        let z2 = y.clone();
+        do z2.do_mul(other.getX());
+
+        do z1.do_sub(z2);
+
+        do x2.dispose();
+        do y2.dispose();
+        do z2.dispose();
+
+        do x.dispose();
+        do y.dispose();
+        do z.dispose();
+
+        let x = x1;
+        let y = y1;
+        let z = z1;
+
+        return;
+    }
+}

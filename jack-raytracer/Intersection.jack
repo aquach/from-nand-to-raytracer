@@ -1,0 +1,24 @@
+class Intersection {
+    field Number distance_from_origin;
+    field Element object; // not owned!
+
+    constructor Intersection new(Number d, Element o) {
+      let distance_from_origin = d;
+      let object = o;
+      return this;
+    }
+
+    method void dispose() {
+      do distance_from_origin.dispose();
+      do Memory.deAlloc(this);
+      return;
+    }
+
+    method Vec3 getDistanceFromOrigin() {
+      return distance_from_origin;
+    }
+
+    method Vec3 getObject() {
+      return object;
+    }
+}

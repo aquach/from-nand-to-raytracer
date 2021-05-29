@@ -1,0 +1,25 @@
+class DirectionalLight {
+    field Vec3 direction;
+    field Number color;
+
+    constructor DirectionalLight new(Vec3 d, Number c) {
+      let direction = d;
+      let color = c;
+      return this;
+    }
+
+    method void dispose() {
+      do direction.dispose();
+      do color.dispose();
+      do Memory.deAlloc(this);
+      return;
+    }
+
+    method Vec3 getDirection() {
+      return direction;
+    }
+
+    method Number getColor() {
+      return color;
+    }
+}
