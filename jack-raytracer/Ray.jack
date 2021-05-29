@@ -2,13 +2,19 @@ class Ray {
     field Vec3 origin;
     field Vec3 direction;
 
+    static int allocs;
+
     constructor Ray new(Vec3 o, Vec3 d) {
+      let allocs = allocs + 1;
+
       let origin = o;
       let direction = d;
       return this;
     }
 
     method void dispose() {
+      let allocs = allocs - 1;
+
       do origin.dispose();
       do direction.dispose();
       do Memory.deAlloc(this);
@@ -21,5 +27,24 @@ class Ray {
 
     method Vec3 getDirection() {
       return direction;
+    }
+
+    method void print() {
+      do Output.printString("origin: ");
+      do origin.print();
+      do Output.println();
+
+      do Output.printString("direction: ");
+      do direction.print();
+      do Output.println();
+
+      return;
+    }
+
+    function void printAllocs() {
+      do Output.printString("ray allocs: ");
+      do Output.printInt(allocs);
+      do Output.println();
+      return;
     }
 }

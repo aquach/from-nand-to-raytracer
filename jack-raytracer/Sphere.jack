@@ -32,10 +32,10 @@ class Sphere {
       do to_center.do_sub(ray.getOrigin());
 
       let projected_onto_ray_dist = to_center.dot(ray.getDirection());
-      let projected_onto_ray_dist_sq = projected_onto_ray_dist;
+      let projected_onto_ray_dist_sq = projected_onto_ray_dist.clone();
       do projected_onto_ray_dist_sq.do_mul(projected_onto_ray_dist);
 
-      let radius_sq = radius;
+      let radius_sq = radius.clone();
       do radius_sq.do_mul(radius);
 
       let opposite_sq = to_center.dist_sq();
@@ -84,7 +84,7 @@ class Sphere {
     }
 
     method Number color() {
-        return color;
+        return color.clone();
     }
 
     method Vec3 surface_normal(Vec3 hit_point) {

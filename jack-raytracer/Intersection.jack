@@ -2,13 +2,19 @@ class Intersection {
     field Number distance_from_origin;
     field Element object; // not owned!
 
+    static int allocs;
+
     constructor Intersection new(Number d, Element o) {
+      let allocs = allocs + 1;
+
       let distance_from_origin = d;
       let object = o;
       return this;
     }
 
     method void dispose() {
+      let allocs = allocs - 1;
+
       do distance_from_origin.dispose();
       do Memory.deAlloc(this);
       return;
@@ -20,5 +26,12 @@ class Intersection {
 
     method Vec3 getObject() {
       return object;
+    }
+
+    function void printAllocs() {
+      do Output.printString("intersection allocs: ");
+      do Output.printInt(allocs);
+      do Output.println();
+      return;
     }
 }

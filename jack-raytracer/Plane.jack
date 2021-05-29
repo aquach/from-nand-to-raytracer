@@ -45,6 +45,7 @@ class Plane {
     if (~distance.is_negative()) {
       return distance;
     } else {
+      do distance.dispose();
       return Number.new(-1);
     }
   }
@@ -139,7 +140,7 @@ class Plane {
 
       return n;
     } else {
-      return color;
+      return color.clone();
     }
   }
 

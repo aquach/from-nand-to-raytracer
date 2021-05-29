@@ -1,6 +1,8 @@
 class Int32 {
   field Array parts;
 
+  static int allocs;
+
   // Jack doesn't have these, so we need to reimplement them.
   function int arith_rightshift(int x, int n) {
     var int r;
@@ -88,22 +90,6 @@ class Int32 {
     }
 
     return r;
-  }
-
-  function void printArray(Array u, int len) {
-    var int i;
-
-    let i = 0;
-    while (i < len) {
-      do Output.printInt(u[i]);
-      do Output.printString(" ");
-
-      let i = i + 1;
-    }
-
-    do Output.println();
-
-    return;
   }
 
   /* // Upper 12 bits of each int are empty. */
@@ -239,6 +225,8 @@ class Int32 {
     var int i_high;
     var int smear;
 
+    let allocs = allocs + 1;
+
     let i_low = i & 255;
     let i_high = Int32.arith_rightshift(i, 8) & 255;
     if (i < 0) {
@@ -258,6 +246,8 @@ class Int32 {
   }
 
   constructor Int32 new_from_parts(Array p) {
+    let allocs = allocs + 1;
+
     let parts = p;
     return this;
   }
@@ -310,6 +300,8 @@ class Int32 {
   }
 
   method void dispose() {
+    let allocs = allocs - 1;
+
     do parts.dispose();
     do Memory.deAlloc(this);
     return;
@@ -397,27 +389,30 @@ class Int32 {
   method void do_mul_right_shift_bytes(Int32 other, int right_shift_bytes) {
     var Array self_parts;
     var Array other_parts;
-    var Int32 abs;
+    var Int32 abs1;
+    var Int32 abs2;
     var boolean is_result_neg;
 
     var Array self_parts_expanded;
     var Array other_parts_expanded;
     var Array result;
 
+    let abs1 = null;
+    let abs2 = null;
     let is_result_neg = Int32.xor(is_negative(), other.is_negative());
 
     if (is_negative()) {
-      let abs = clone();
-      do abs.do_abs();
-      let self_parts = abs.getParts();
+      let abs1 = clone();
+      do abs1.do_abs();
+      let self_parts = abs1.getParts();
     } else {
       let self_parts = parts;
     }
 
     if (other.is_negative()) {
-      let abs = other.clone();
-      do abs.do_abs();
-      let other_parts = abs.getParts();
+      let abs2 = other.clone();
+      do abs2.do_abs();
+      let other_parts = abs2.getParts();
     } else {
       let other_parts = other.getParts();
     }
@@ -457,8 +452,12 @@ class Int32 {
       do do_neg();
     }
 
-    if (~(abs = null)) {
-      do abs.dispose();
+    if (~(abs1 = null)) {
+      do abs1.dispose();
+    }
+
+    if (~(abs2 = null)) {
+      do abs2.dispose();
     }
 
     do self_parts_expanded.dispose();
@@ -477,7 +476,8 @@ class Int32 {
     var Array self_parts;
     var Array other_parts;
 
-    var Int32 abs;
+    var Int32 abs1;
+    var Int32 abs2;
     var boolean is_result_neg;
 
     var Array self_parts_shifted;
@@ -490,20 +490,22 @@ class Int32 {
 
     var Array result;
 
+    let abs1 = null;
+    let abs2 = null;
     let is_result_neg = Int32.xor(is_negative(), other.is_negative());
 
     if (is_negative()) {
-      let abs = clone();
-      do abs.do_abs();
-      let self_parts = abs.getParts();
+      let abs1 = clone();
+      do abs1.do_abs();
+      let self_parts = abs1.getParts();
     } else {
       let self_parts = parts;
     }
 
     if (other.is_negative()) {
-      let abs = other.clone();
-      do abs.do_abs();
-      let other_parts = abs.getParts();
+      let abs2 = other.clone();
+      do abs2.do_abs();
+      let other_parts = abs2.getParts();
     } else {
       let other_parts = other.getParts();
     }
@@ -597,8 +599,12 @@ class Int32 {
       do do_neg();
     }
 
-    if (~(abs = null)) {
-      do abs.dispose();
+    if (~(abs1 = null)) {
+      do abs1.dispose();
+    }
+
+    if (~(abs2 = null)) {
+      do abs2.dispose();
     }
 
     do self_parts_shifted.dispose();
@@ -724,6 +730,26 @@ class Int32 {
     let parts[2] = 0;
     let parts[3] = 0;
 
+    return;
+  }
+
+  method void print() {
+    do Output.printString("[");
+    do Output.printInt(parts[0]);
+    do Output.printString(" ");
+    do Output.printInt(parts[1]);
+    do Output.printString(" ");
+    do Output.printInt(parts[2]);
+    do Output.printString(" ");
+    do Output.printInt(parts[3]);
+    do Output.printString("]");
+    return;
+  }
+
+  function void printAllocs() {
+    do Output.printString("int32 allocs: ");
+    do Output.printInt(allocs);
+    do Output.println();
     return;
   }
 }

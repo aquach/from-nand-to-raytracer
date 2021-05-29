@@ -1,5 +1,5 @@
 class Main {
-  function Number getRawPixelColor(Scene scene, int x, int y, Number epsilon) {
+  function Number getRawPixelColor(Scene scene, int x, int y, Number epsilon, Number neg1) {
     var Number pixel_color;
     var Ray ray;
     var Intersection intersection;
@@ -27,7 +27,6 @@ class Main {
     let pixel_color = Number.new(0);
 
     let ray = scene.create_prime_ray(x, y);
-
     let intersection = scene.trace(ray);
 
     if (~(intersection = null)) {
@@ -47,7 +46,7 @@ class Main {
 
         let v = light.getDirection();
         let direction_to_light = v.clone();
-        do direction_to_light.do_scale(Number.new(-1));
+        do direction_to_light.do_scale(neg1);
 
         let shadow_bias = direction_to_light.clone();
         do shadow_bias.do_scale(epsilon);
@@ -66,6 +65,7 @@ class Main {
         if (in_light) {
           let light_power = surface_normal.dot(direction_to_light);
           if (light_power.is_negative()) {
+            do light_power.dispose();
             let light_power = Number.new(0);
           }
 
@@ -73,8 +73,11 @@ class Main {
           let added_color = n.clone();
           do added_color.do_mul(light_power);
           do added_color.do_div(Number.getPi());
+
           let e = intersection.getObject();
-          do added_color.do_mul(e.color(hit_point));
+          let n = e.color(hit_point);
+          do added_color.do_mul(n);
+          do n.dispose();
 
           do pixel_color.do_add(added_color);
 
@@ -82,6 +85,7 @@ class Main {
           do added_color.dispose();
         }
 
+        do shadow_bias.dispose();
         do shadow_ray.dispose();
 
         let i = i + 1;
@@ -92,6 +96,8 @@ class Main {
       do offset.dispose();
       do surface_normal.dispose();
     }
+
+    do ray.dispose();
 
     return pixel_color;
   }
@@ -105,6 +111,7 @@ class Main {
       var Number five;
       var Number seven;
       var Number sixteen;
+      var Number neg1;
 
       var int y;
       var int x;
@@ -127,9 +134,18 @@ class Main {
       var Number pixel_color;
       var Number n;
 
-      let dither_pixels = Array.new(scene.getWidth());
-      let next_dither_pixels = Array.new(scene.getWidth());
-      let adjacent_dither = Number.new(0);
+      /* let dither_pixels = Array.new(scene.getWidth()); */
+      /* let next_dither_pixels = Array.new(scene.getWidth()); */
+      /* let adjacent_dither = Number.new(0); */
+
+      /* let i = 0; */
+      /* while (i < scene.getWidth()) { */
+      /*   do Output.printInt(i); */
+      /*   do Output.println(); */
+      /*   let dither_pixels[i] = Number.new(0); */
+      /*   let next_dither_pixels[i] = Number.new(0); */
+      /*   let i = i + 1; */
+      /* } */
 
       let half = Main.getOneHalf();
       let epsilon = Main.getOneTwentieth();
@@ -139,18 +155,19 @@ class Main {
       let five = Number.new(5);
       let seven = Number.new(7);
       let sixteen = Number.new(16);
+      let neg1 = Number.new(-1);
 
       while (y < scene.getHeight()) {
         while (x < scene.getWidth()) {
-          let pixel_color = Main.getRawPixelColor(scene, x, y, epsilon);
+          let pixel_color = Main.getRawPixelColor(scene, x, y, epsilon, neg1);
 
           // Poor math's gamma correction :sob: sqrt() is much easier than 1/2.2
           do pixel_color.do_sqrt();
 
-          // Bring in the value from the dithering. We want to dither _after_ gamma correction.
-          // Dithered pixels represent gamma-encoded values already.
-          do pixel_color.do_add(adjacent_dither[x]);
-          do pixel_color.do_add(dither_pixels[x]);
+          /* // Bring in the value from the dithering. We want to dither _after_ gamma correction. */
+          /* // Dithered pixels represent gamma-encoded values already. */
+          /* do pixel_color.do_add(adjacent_dither); */
+          /* do pixel_color.do_add(dither_pixels[x]); */
 
           // Perform dithering.
 
@@ -162,44 +179,45 @@ class Main {
             let quantized_color = zero;
           }
 
-          let quant_error = pixel_color.clone();
-          do quant_error.do_sub(quantized_color);
-          do quant_error.do_div(sixteen);
+          /* let quant_error = pixel_color.clone(); */
+          /* do quant_error.do_sub(quantized_color); */
+          /* do quant_error.do_div(sixteen); */
 
-          if (x + 1 < scene.getWidth()) {
-            let quant_error_7 = quant_error.clone();
-            do quant_error_7.do_mul(seven);
-            do adjacent_dither.do_zero();
-            do adjacent_dither.do_add(quant_error_7);
-            do quant_error_7.dispose();
-          }
+          /* if (x + 1 < scene.getWidth()) { */
+          /*   let quant_error_7 = quant_error.clone(); */
+          /*   do quant_error_7.do_mul(seven); */
+          /*   do adjacent_dither.do_zero(); */
+          /*   do adjacent_dither.do_add(quant_error_7); */
+          /*   do quant_error_7.dispose(); */
+          /* } */
 
-          if (y + 1 < scene.getHeight()) {
-            if ((x > 1) | (x = 0)) {
-              let quant_error_3 = quant_error.clone();
-              do quant_error_3.do_mul(three);
-              let n = next_dither_pixels[x - 1];
-              do n.do_add(quant_error_3);
-              do quant_error_3.dispose();
-            }
+          /* if (y + 1 < scene.getHeight()) { */
+          /*   if ((x > 1) | (x = 0)) { */
+          /*     let quant_error_3 = quant_error.clone(); */
+          /*     do quant_error_3.do_mul(three); */
+          /*     let n = next_dither_pixels[x - 1]; */
+          /*     do n.do_add(quant_error_3); */
+          /*     do quant_error_3.dispose(); */
+          /*   } */
 
-            let quant_error_5 = quant_error.clone();
-            do quant_error_5.do_mul(five);
-            let n = next_dither_pixels[x];
-            do n.do_add(quant_error_5);
-            do quant_error_5.dispose();
+          /*   let quant_error_5 = quant_error.clone(); */
+          /*   do quant_error_5.do_mul(five); */
+          /*   let n = next_dither_pixels[x]; */
+          /*   do n.do_add(quant_error_5); */
+          /*   do quant_error_5.dispose(); */
 
-            if (x + 1 < scene.getWidth()) {
-              let n = next_dither_pixels[x + 1];
-              do n.do_add(quant_error);
-            }
-          }
+          /*   if (x + 1 < scene.getWidth()) { */
+          /*     let n = next_dither_pixels[x + 1]; */
+          /*     do n.do_add(quant_error); */
+          /*   } */
+          /* } */
+
+          /* do quant_error.dispose(); */
 
           do Screen.setColor(~is_white);
-          do Screen.drawRectangle(x, y, x + 1, y + 1); // check coords?
+          do Screen.drawPixel(x, y);
 
           do pixel_color.dispose();
-          do quant_error.dispose();
 
           let x = x + 1;
         }
@@ -382,65 +400,65 @@ class Main {
     let nLights = 3;
     let lights = Array.new(nLights);
 
-    let elements[0] = Sphere.new(
-        Vec3.new(
-          Number.new(-6),
-          Main.getNegativeOneHalf(),
-          Number.new(-5)
-          ),
-        Main.getThreeHalves(),
-        Main.getFourFifths()
-        );
+    let elements[0] = Element.sphere(Sphere.new(
+          Vec3.new(
+            Number.new(-6),
+            Main.getNegativeOneHalf(),
+            Number.new(-5)
+            ),
+          Main.getThreeHalves(),
+          Main.getFourFifths()
+          ));
 
-    let elements[1] = Sphere.new(
-        Vec3.new(
-          Number.new(-1),
-          Number.new(-1),
-          Number.new(-5)
-          ),
-        Number.new(1),
-        Main.getThreeFifths()
-        );
+    let elements[1] = Element.sphere(Sphere.new(
+          Vec3.new(
+            Number.new(-1),
+            Number.new(-1),
+            Number.new(-5)
+            ),
+          Number.new(1),
+          Main.getThreeFifths()
+          ));
 
-    let elements[2] = Sphere.new(
-        Vec3.new(
+    let elements[2] = Element.sphere(Sphere.new(
+          Vec3.new(
+            Number.new(2),
+            Number.new(0),
+            Number.new(-3)
+            ),
           Number.new(2),
-          Number.new(0),
-          Number.new(-3)
-          ),
-        Number.new(2),
-        Number.new(1)
-        );
+          Number.new(1)
+          ));
 
-    let elements[3] = Plane.new(
-        Vec3.new(
-          Number.new(0),
-          Number.new(0),
-          Number.new(-25)
-          ),
-        Vec3.new(
-          Number.new(0),
-          Number.new(0),
-          Number.new(-1)
-          ),
-        Number.new(1),
-        false
-        );
+    let elements[3] = Element.plane(Plane.new(
+          Vec3.new(
+            Number.new(0),
+            Number.new(0),
+            Number.new(-25)
+            ),
+          Vec3.new(
+            Number.new(0),
+            Number.new(0),
+            Number.new(-1)
+            ),
+          Number.new(1),
+          false
+          ));
 
-    let elements[4] = Plane.new(
-        Vec3.new(
-          Number.new(0),
-          Number.new(-2),
-          Number.new(0)
-          ),
-        Vec3.new(
-          Number.new(0),
+    let elements[4] = Element.plane(Plane.new(
+          Vec3.new(
+            Number.new(0),
+            Number.new(-2),
+            Number.new(0)
+            ),
+          Vec3.new(
+            Number.new(0),
+            Number.new(-1),
+            Number.new(0)
+            ),
           Number.new(-1),
-          Number.new(0)
-          ),
-        Number.new(-1),
-        true
-        );
+          false // TODO switch back to true
+          ));
 
     let d0 = Vec3.new(
         Number.new(0),
@@ -481,51 +499,4 @@ class Main {
 
     return;
   }
-
-  /* function void main() { */
-  /*   var Number x; */
-  /*   var Number y; */
-  /*   var Array parts; */
-
-  /*   do Number.initialize(); */
-
-  /*   let x = Number.new(30182); */
-  /*   let y = Number.new(483); */
-
-  /*   let parts = x.getParts(); */
-  /*   do Output.printInt(parts[0]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[1]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[2]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[3]); */
-
-  /*   do Output.println(); */
-  /*   do Output.println(); */
-
-  /*   let parts = y.getParts(); */
-  /*   do Output.printInt(parts[0]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[1]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[2]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[3]); */
-
-  /*   do Output.println(); */
-  /*   do Output.println(); */
-
-  /*   do x.do_div(y); */
-  /*   let parts = x.getParts(); */
-  /*   do Output.printInt(parts[0]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[1]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[2]); */
-  /*   do Output.println(); */
-  /*   do Output.printInt(parts[3]); */
-  /*   return; */
-  /* } */
-
 }

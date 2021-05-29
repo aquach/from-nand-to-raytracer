@@ -2,41 +2,53 @@ class Number {
   field Int32 v;
   static int BYTES_FOR_FRAC;
   static Int32 SCALE_FACTOR;
-  static Int32 PI;
+  static Number PI;
 
-  function Int32 getPi() {
+  static int allocs;
+
+  function Number getPi() {
     return PI;
   }
 
   function void initialize() {
     var Int32 t;
+    var Int32 u;
 
     let BYTES_FOR_FRAC = 2;
 
     let SCALE_FACTOR = Int32.new(256);
     do SCALE_FACTOR.do_mul(SCALE_FACTOR);
 
-    let PI = Int32.new(561);
-    let t = Int32.new(367);
-    do PI.do_mul(t);
+    let t = Int32.new(561);
+    let u = Int32.new(367);
+    do t.do_mul(u);
+    let PI = Number.new_from_int32(t);
 
-    do t.dispose();
+    /* do PI.print(); */
+
+    do u.dispose();
 
     return;
   }
 
   constructor Number new(int i) {
+    let allocs = allocs + 1;
+
     let v = Int32.new(i);
     do v.do_left_shift_bytes(BYTES_FOR_FRAC);
     return this;
   }
 
   constructor Number new_from_int32(Int32 i) {
+    let allocs = allocs + 1;
+
     let v = i;
     return this;
   }
 
   method void dispose() {
+    let allocs = allocs - 1;
+
     do v.dispose();
     do Memory.deAlloc(this);
     return;
@@ -139,6 +151,18 @@ class Number {
 
   method void do_zero() {
     do v.do_zero();
+    return;
+  }
+
+  method void print() {
+    do v.print();
+    return;
+  }
+
+  function void printAllocs() {
+    do Output.printString("number allocs: ");
+    do Output.printInt(allocs);
+    do Output.println();
     return;
   }
 }

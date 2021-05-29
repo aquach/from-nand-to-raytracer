@@ -4,11 +4,13 @@ class Element {
 
     constructor Element plane(Plane p) {
       let plane = p;
+      let sphere = null;
       return this;
     }
 
     constructor Element sphere(Sphere s) {
       let sphere = s;
+      let plane = null;
       return this;
     }
 

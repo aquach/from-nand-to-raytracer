@@ -3,7 +3,11 @@ class Vec3 {
     field Number y;
     field Number z;
 
+    static int allocs;
+
     constructor Vec3 new(Number nx, Number ny, Number nz) {
+      let allocs = allocs + 1;
+
       let x = nx;
       let y = ny;
       let z = nz;
@@ -12,6 +16,8 @@ class Vec3 {
     }
 
     method void dispose() {
+      let allocs = allocs - 1;
+
       do x.dispose();
       do y.dispose();
       do z.dispose();
@@ -46,9 +52,9 @@ class Vec3 {
         do y.do_div(nx);
         do z.do_div(nx);
 
-        do x.dispose();
-        do y.dispose();
-        do z.dispose();
+        do nx.dispose();
+        do ny.dispose();
+        do nz.dispose();
 
         return;
     }
@@ -160,5 +166,28 @@ class Vec3 {
         let z = z1;
 
         return;
+    }
+
+    method void print() {
+      do Output.printString("x: ");
+      do x.print();
+      do Output.println();
+
+      do Output.printString("y: ");
+      do y.print();
+      do Output.println();
+
+      do Output.printString("z: ");
+      do z.print();
+      do Output.println();
+
+      return;
+    }
+
+    function void printAllocs() {
+      do Output.printString("vec3 allocs: ");
+      do Output.printInt(allocs);
+      do Output.println();
+      return;
     }
 }

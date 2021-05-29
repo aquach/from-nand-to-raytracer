@@ -87,7 +87,7 @@ class Scene {
     let half = Number.new(1);
     do half.do_div(two);
 
-    let aspect_ratio = scene_width;
+    let aspect_ratio = scene_width.clone();
     do aspect_ratio.do_div(scene_height);
 
     let sensor_x = Number.new(pixel_x);
@@ -118,8 +118,6 @@ class Scene {
     do half.dispose();
 
     do aspect_ratio.dispose();
-    do sensor_x.dispose();
-    do sensor_y.dispose();
 
     return Ray.new(
         Vec3.new(
@@ -132,25 +130,30 @@ class Scene {
   }
 
   method Intersection trace(Ray ray) {
-    var Intersection intersection;
+    var Intersection closest_intersection;
     var int i;
     var Element elem;
     var Number distance;
-    var Number cur_distance;
+    var Number best_distance;
+    var boolean is_closer;
+
+    let closest_intersection = null;
 
     while (i < nElements) {
       let elem = elements[i];
       let distance = elem.intersect(ray);
 
-      if (~(intersection = null)) {
-        let cur_distance = intersection.getDistanceFromOrigin();
+      let is_closer = false;
+      if (~(closest_intersection = null)) {
+        let best_distance = closest_intersection.getDistanceFromOrigin();
+        let is_closer = distance.is_less_than(best_distance);
       }
 
-      if ((~(distance.is_negative())) & (intersection = null | cur_distance.is_less_than(distance))) {
-        if (~(intersection = null)) {
-          do intersection.dispose();
+      if ((~(distance.is_negative())) & ((closest_intersection = null) | is_closer)) {
+        if (~(closest_intersection = null)) {
+          do closest_intersection.dispose();
         }
-        let intersection = Intersection.new(distance, elem);
+        let closest_intersection = Intersection.new(distance, elem);
       } else {
         do distance.dispose();
       }
@@ -158,6 +161,6 @@ class Scene {
       let i = i + 1;
     }
 
-    return intersection;
+    return closest_intersection;
   }
 }
