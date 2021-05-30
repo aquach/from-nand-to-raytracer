@@ -1,5 +1,14 @@
 class Main {
-  function Number getRawPixelColor(Scene scene, int x, int y, Number epsilon, Number neg1) {
+  function Number getRawPixelColor(
+    Scene scene,
+    int x,
+    int y,
+    Number epsilon,
+    Number neg1,
+    Number one,
+    Number two,
+    Number half
+  ) {
     var Number pixel_color;
     var Ray ray;
     var Intersection intersection;
@@ -26,7 +35,7 @@ class Main {
 
     let pixel_color = Number.new(0);
 
-    let ray = scene.create_prime_ray(x, y);
+    let ray = scene.create_prime_ray(x, y, one, two, half);
     let intersection = scene.trace(ray);
 
     if (~(intersection = null)) {
@@ -64,25 +73,24 @@ class Main {
 
         if (in_light) {
           let light_power = surface_normal.dot(direction_to_light);
-          if (light_power.is_negative()) {
-            do light_power.dispose();
-            let light_power = Number.new(0);
+
+          if (light_power.is_positive()) {
+            let n = light.getColor();
+            let added_color = n.clone();
+            do added_color.do_mul(light_power);
+            do added_color.do_div(Number.getPi());
+
+            let e = intersection.getObject();
+            let n = e.color(hit_point);
+            do added_color.do_mul(n);
+            do n.dispose();
+
+            do pixel_color.do_add(added_color);
+
+            do added_color.dispose();
           }
 
-          let n = light.getColor();
-          let added_color = n.clone();
-          do added_color.do_mul(light_power);
-          do added_color.do_div(Number.getPi());
-
-          let e = intersection.getObject();
-          let n = e.color(hit_point);
-          do added_color.do_mul(n);
-          do n.dispose();
-
-          do pixel_color.do_add(added_color);
-
           do light_power.dispose();
-          do added_color.dispose();
         }
 
         do shadow_bias.dispose();
@@ -107,6 +115,7 @@ class Main {
       var Number epsilon;
       var Number zero;
       var Number one;
+      var Number two;
       var Number three;
       var Number five;
       var Number seven;
@@ -151,15 +160,18 @@ class Main {
       let epsilon = Main.getOneTwentieth();
       let zero = Number.new(0);
       let one = Number.new(1);
+      let two = Number.new(2);
       let three = Number.new(3);
       let five = Number.new(5);
       let seven = Number.new(7);
       let sixteen = Number.new(16);
       let neg1 = Number.new(-1);
 
+      let y = 0;
       while (y < scene.getHeight()) {
+        let x = 0;
         while (x < scene.getWidth()) {
-          let pixel_color = Main.getRawPixelColor(scene, x, y, epsilon, neg1);
+          let pixel_color = Main.getRawPixelColor(scene, x, y, epsilon, neg1, one, two, half);
 
           // Poor math's gamma correction :sob: sqrt() is much easier than 1/2.2
           do pixel_color.do_sqrt();
@@ -223,17 +235,17 @@ class Main {
         }
 
         // Flip dither.
-        let temp = dither_pixels;
-        let dither_pixels = next_dither_pixels;
-        let next_dither_pixels = temp;
+        /* let temp = dither_pixels; */
+        /* let dither_pixels = next_dither_pixels; */
+        /* let next_dither_pixels = temp; */
 
-        // Zero out next dither.
-        let i = 0;
-        while (i < scene.getWidth()) {
-          let n = next_dither_pixels[i];
-          do n.do_zero();
-          let i = i + 1;
-        }
+        /* // Zero out next dither. */
+        /* let i = 0; */
+        /* while (i < scene.getWidth()) { */
+        /*   let n = next_dither_pixels[i]; */
+        /*   do n.do_zero(); */
+        /*   let i = i + 1; */
+        /* } */
 
         let y = y + 1;
       }
@@ -486,8 +498,8 @@ class Main {
     let lights[2] = DirectionalLight.new(d2, Main.getThreeTenths());
 
     let scene = Scene.new(
-        Number.new(512),
-        Number.new(256),
+        512,
+        256,
         elements,
         nElements,
         lights,

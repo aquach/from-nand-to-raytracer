@@ -1,6 +1,9 @@
 class Scene {
   field int width;
   field int height;
+  field Number aspect_ratio;
+  field Number width_number;
+  field Number height_number;
   field Array elements;
   field int nElements;
   field Array lights;
@@ -13,6 +16,13 @@ class Scene {
     let nElements = ne;
     let lights = l;
     let nLights = nl;
+
+    let width_number = Number.new(width);
+    let height_number = Number.new(height);
+
+    let aspect_ratio = width_number.clone();
+    do aspect_ratio.do_div(height_number);
+
     return this;
   }
 
@@ -36,6 +46,10 @@ class Scene {
       let i = i + 1;
     }
     do lights.dispose();
+
+    do aspect_ratio.dispose();
+    do width_number.dispose();
+    do height_number.dispose();
 
     do Memory.deAlloc(this);
 
@@ -66,40 +80,21 @@ class Scene {
     return nLights;
   }
 
-  method Ray create_prime_ray(int pixel_x, int pixel_y) {
-    var Number scene_width;
-    var Number scene_height;
-    var Number one;
-    var Number two;
-    var Number half;
-
-    var Number aspect_ratio;
+  method Ray create_prime_ray(int pixel_x, int pixel_y, Number one, Number two, Number half) {
     var Number sensor_x;
     var Number sensor_y;
     var Vec3 direction;
 
-    let scene_width = Number.new(width);
-    let scene_height = Number.new(height);
-
-    let one = Number.new(1);
-    let two = Number.new(2);
-
-    let half = Number.new(1);
-    do half.do_div(two);
-
-    let aspect_ratio = scene_width.clone();
-    do aspect_ratio.do_div(scene_height);
-
     let sensor_x = Number.new(pixel_x);
     do sensor_x.do_add(half);
-    do sensor_x.do_div(scene_width);
+    do sensor_x.do_div(width_number);
     do sensor_x.do_mul(two);
     do sensor_x.do_sub(one);
     do sensor_x.do_mul(aspect_ratio);
 
     let sensor_y = Number.new(pixel_y);
     do sensor_y.do_add(half);
-    do sensor_y.do_div(scene_height);
+    do sensor_y.do_div(height_number);
     do sensor_y.do_neg();
     do sensor_y.do_mul(two);
     do sensor_y.do_add(one);
@@ -110,14 +105,6 @@ class Scene {
         Number.new(-1)
         );
     do direction.do_normalize();
-
-    do scene_width.dispose();
-    do scene_height.dispose();
-    do one.dispose();
-    do two.dispose();
-    do half.dispose();
-
-    do aspect_ratio.dispose();
 
     return Ray.new(
         Vec3.new(

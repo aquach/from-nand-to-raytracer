@@ -78,10 +78,20 @@ impl Number {
     }
 
     pub fn do_mul(&mut self, other: &Number) {
+        if self.is_zero() || other.is_zero() {
+            self.0.do_zero();
+            return;
+        }
+
         self.0.do_mul_right_shift_bytes(&other.0, *BYTES_FOR_FRAC);
     }
 
     pub fn do_div(&mut self, other: &Number) {
+        if self.is_zero() && !other.is_zero() {
+            self.0.do_zero();
+            return;
+        }
+
         self.0.do_left_shift_bytes_div(*BYTES_FOR_FRAC, &other.0);
     }
 

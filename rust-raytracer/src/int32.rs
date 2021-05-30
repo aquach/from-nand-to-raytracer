@@ -474,23 +474,52 @@ impl Int32 {
         self.validate();
     }
 
+    fn initial_sqrt_guess(&self) -> Int32 {
+        if self.parts[3] > 0 {
+            let mut x = Int32::from(11);
+            x.do_mul(&Int32::from(4096));
+            return x;
+        }
+        if self.parts[2] > 0 {
+            let mut x = Int32::from(11);
+            x.do_mul(&Int32::from(256));
+            return x;
+        }
+        if self.parts[1] > 0 {
+            let mut x = Int32::from(11);
+            x.do_mul(&Int32::from(16));
+            return x;
+        }
+
+        return Int32::from(11);
+    }
+
     pub fn do_sqrt(&mut self) {
-        // println!("{}", self.to_i32());
+        if self.is_negative() {
+            panic!();
+        }
+
         if self.is_zero() {
             return;
         }
 
-        let mut x = Int32::from(5);
+        let mut guess = self.initial_sqrt_guess();
         for _ in 0..20 {
-            // println!("  {}", x.to_i32());
             let mut inv = *self;
-            inv.do_div(&x);
+            inv.do_div(&guess);
 
-            x.do_add(&inv);
-            x.do_div(&Int32::from(2));
+            let mut new_guess = guess;
+            new_guess.do_add(&inv);
+            new_guess.do_div(&Int32::from(2));
+
+            if new_guess.cmp(&guess) == 0 {
+                break;
+            }
+
+            guess = new_guess;
         }
 
-        self.parts = x.parts;
+        self.parts = guess.parts;
     }
 
     pub fn do_neg(&mut self) {
@@ -532,6 +561,13 @@ impl Int32 {
 
     pub fn is_positive(&self) -> bool {
         !self.is_zero() && arith_rightshift(self.parts[3], 7) == 0
+    }
+
+    pub fn do_zero(&mut self) {
+        self.parts[0] = 0;
+        self.parts[1] = 0;
+        self.parts[2] = 0;
+        self.parts[3] = 0;
     }
 
     pub fn cmp(&self, other: &Int32) -> i16 {
