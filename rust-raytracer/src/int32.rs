@@ -475,12 +475,14 @@ impl Int32 {
     }
 
     pub fn do_sqrt(&mut self) {
+        // println!("{}", self.to_i32());
         if self.is_zero() {
             return;
         }
 
         let mut x = Int32::from(5);
         for _ in 0..20 {
+            // println!("  {}", x.to_i32());
             let mut inv = *self;
             inv.do_div(&x);
 

@@ -57,7 +57,7 @@ impl Number {
     pub fn to_f64(&self) -> f64 {
         self.0
     }
-    pub fn to_int32(mut self) -> Int32 {
+    pub fn to_int32(self) -> Int32 {
         Int32::from_i32(self.0 as i32)
     }
 

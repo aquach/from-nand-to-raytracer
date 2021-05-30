@@ -10,6 +10,28 @@ lazy_static! {
         x.do_mul(&y);
         x
     };
+
+    static ref SCALE_FACTOR_SQRT_SQRT: Int32 = {
+        let mut s = SCALE_FACTOR.clone();
+        s.do_sqrt();
+        s.do_sqrt();
+        s
+    };
+
+    static ref SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3: Int32 = {
+        let mut s = SCALE_FACTOR.clone();
+        s.do_sqrt();
+        s.do_sqrt();
+        s.do_sqrt();
+
+        let t = s;
+
+        s.do_mul(&t);
+        s.do_mul(&t);
+
+        s
+    };
+
     pub static ref PI: Number = {
         let mut x = Int32::from(561);
         let y = Int32::from(367);
@@ -64,20 +86,9 @@ impl Number {
     }
 
     pub fn do_sqrt(&mut self) {
-        let mut sqrt_s = SCALE_FACTOR.clone();
-        sqrt_s.do_sqrt();
-
-        let mut sqrt_sqrt_s = sqrt_s;
-        sqrt_sqrt_s.do_sqrt();
-
-        let mut sqrt_sqrt_sqrt_s = sqrt_sqrt_s;
-        sqrt_sqrt_sqrt_s.do_sqrt();
-
-        self.0.do_mul(&sqrt_sqrt_s);
+        self.0.do_mul(&SCALE_FACTOR_SQRT_SQRT);
         self.0.do_sqrt();
-        self.0.do_mul(&sqrt_sqrt_sqrt_s);
-        self.0.do_mul(&sqrt_sqrt_sqrt_s);
-        self.0.do_mul(&sqrt_sqrt_sqrt_s);
+        self.0.do_mul(&SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3);
     }
 
     pub fn do_neg(&mut self) {
