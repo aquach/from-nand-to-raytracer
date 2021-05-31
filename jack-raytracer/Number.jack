@@ -2,6 +2,8 @@ class Number {
   field Int32 v;
   static int BYTES_FOR_FRAC;
   static Int32 SCALE_FACTOR;
+  static Int32 SCALE_FACTOR_SQRT_SQRT;
+  static Int32 SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3;
   static Number PI;
 
   static int allocs;
@@ -11,6 +13,7 @@ class Number {
   }
 
   function void initialize() {
+    var Int32 s;
     var Int32 t;
     var Int32 u;
 
@@ -24,9 +27,18 @@ class Number {
     do t.do_mul(u);
     let PI = Number.new_from_int32(t);
 
-    /* do PI.print(); */
+    let SCALE_FACTOR_SQRT_SQRT = SCALE_FACTOR.clone();
+    do SCALE_FACTOR_SQRT_SQRT.do_sqrt();
+    do SCALE_FACTOR_SQRT_SQRT.do_sqrt();
+
+    let SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3 = SCALE_FACTOR_SQRT_SQRT.clone();
+    do SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3.do_sqrt();
+    let s = SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3.clone();
+    do SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3.do_mul(s);
+    do SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3.do_mul(s);
 
     do u.dispose();
+    do s.dispose();
 
     return;
   }
@@ -85,39 +97,27 @@ class Number {
   }
 
   method void do_mul(Number other) {
+    if (v.is_zero() | other.is_zero()) {
+      do v.do_zero();
+      return;
+    }
     do v.do_mul_right_shift_bytes(other.getV(), BYTES_FOR_FRAC);
     return;
   }
 
   method void do_div(Number other) {
+    if (v.is_zero() & ~other.is_zero()) {
+      do v.do_zero();
+      return;
+    }
     do v.do_left_shift_bytes_div(BYTES_FOR_FRAC, other.getV());
     return;
   }
 
   method void do_sqrt() {
-    var Int32 sqrt_s;
-    var Int32 sqrt_sqrt_s;
-    var Int32 sqrt_sqrt_sqrt_s;
-
-    let sqrt_s = SCALE_FACTOR.clone();
-    do sqrt_s.do_sqrt();
-
-    let sqrt_sqrt_s = sqrt_s.clone();
-    do sqrt_sqrt_s.do_sqrt();
-
-    let sqrt_sqrt_sqrt_s = sqrt_sqrt_s.clone();
-    do sqrt_sqrt_sqrt_s.do_sqrt();
-
-    do v.do_mul(sqrt_sqrt_s);
+    do v.do_mul(SCALE_FACTOR_SQRT_SQRT);
     do v.do_sqrt();
-    do v.do_mul(sqrt_sqrt_sqrt_s);
-    do v.do_mul(sqrt_sqrt_sqrt_s);
-    do v.do_mul(sqrt_sqrt_sqrt_s);
-
-    do sqrt_s.dispose();
-    do sqrt_sqrt_s.dispose();
-    do sqrt_sqrt_sqrt_s.dispose();
-
+    do v.do_mul(SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3);
     return;
   }
 

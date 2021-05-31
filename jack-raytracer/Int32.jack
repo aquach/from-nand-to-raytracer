@@ -41,7 +41,6 @@ class Int32 {
   }
 
   // Top 12 bits of each int should be empty.
-  // It should really be u8 but we're simulating Jack which only has int.
   function Array u4_array_mul_u4_array(Array u, Array v) {
     var Array w;
     var int j;
@@ -50,6 +49,13 @@ class Int32 {
     var int t;
     let w = Array.new(16);
 
+    let i = 0;
+    while (i < 16) {
+      let w[i] = 0;
+      let i = i + 1;
+    }
+
+    let j = 0;
     while (j < 8) {
       let k = 0;
 
@@ -622,12 +628,42 @@ class Int32 {
     return;
   }
 
-  method void do_sqrt() {
+  method Int32 initial_sqrt_guess() {
     var Int32 x;
+    var Int32 y;
+
+    if (parts[3] > 0) {
+      let x = Int32.new(11);
+      let y = Int32.new(4096);
+      do x.do_mul(y);
+      do y.dispose();
+      return x;
+    }
+    if (parts[2] > 0) {
+      let x = Int32.new(11);
+      let y = Int32.new(256);
+      do x.do_mul(y);
+      do y.dispose();
+      return x;
+    }
+    if (parts[1] > 0) {
+      let x = Int32.new(11);
+      let y = Int32.new(16);
+      do x.do_mul(y);
+      do y.dispose();
+      return x;
+    }
+
+    return Int32.new(11);
+  }
+
+  method void do_sqrt() {
+    var Int32 old_guess;
+    var Int32 guess;
     var Int32 two;
     var Int32 inv;
     var int i;
-    var Array x_parts;
+    var Array guess_parts;
 
     if (is_zero()) {
       return;
@@ -635,29 +671,35 @@ class Int32 {
 
     let two = Int32.new(2);
 
-    let x = Int32.new(5);
+    let old_guess = Int32.new(-1);
+    let guess = initial_sqrt_guess();
+
     let i = 0;
 
-    while (i < 20) {
+    while (i < 20 & ~(old_guess.cmp(guess) = 0)) {
       let inv = clone();
-      do inv.do_div(x);
+      do inv.do_div(guess);
 
-      do x.do_add(inv);
-      do x.do_div(two);
+      do old_guess.dispose();
+      let old_guess = guess.clone();
+
+      do guess.do_add(inv);
+      do guess.do_div(two);
 
       do inv.dispose();
 
       let i = i + 1;
     }
 
-    let x_parts = x.getParts();
-    let parts[0] = x_parts[0];
-    let parts[1] = x_parts[1];
-    let parts[2] = x_parts[2];
-    let parts[3] = x_parts[3];
+    let guess_parts = guess.getParts();
+    let parts[0] = guess_parts[0];
+    let parts[1] = guess_parts[1];
+    let parts[2] = guess_parts[2];
+    let parts[3] = guess_parts[3];
 
     do two.dispose();
-    do x.dispose();
+    do guess.dispose();
+    do old_guess.dispose();
 
     return;
   }

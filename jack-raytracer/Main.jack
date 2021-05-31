@@ -1,4 +1,20 @@
 class Main {
+  function void printArray(Array u, int len) {
+    var int i;
+
+    do Output.printString("[");
+
+    let i = 0;
+    while (i < len) {
+      do Output.printInt(u[i]);
+      do Output.printString(" ");
+      let i = i + 1;
+    }
+
+    do Output.printString("]");
+    return;
+  }
+
   function Number getRawPixelColor(
     Scene scene,
     int x,
@@ -403,6 +419,8 @@ class Main {
     var Vec3 d0;
     var Vec3 d1;
     var Vec3 d2;
+
+    var Number n;
 
     do Number.initialize();
 
