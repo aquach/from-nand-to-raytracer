@@ -2,6 +2,27 @@ class Int32 {
   field Array parts;
 
   static int allocs;
+  static Array rightshifts;
+
+  function void initialize() {
+    let rightshifts = Array.new(15);
+    let rightshifts[0] = 1;
+    let rightshifts[1] = 2;
+    let rightshifts[2] = 4;
+    let rightshifts[3] = 8;
+    let rightshifts[4] = 16;
+    let rightshifts[5] = 32;
+    let rightshifts[6] = 64;
+    let rightshifts[7] = 128;
+    let rightshifts[8] = 256;
+    let rightshifts[9] = 512;
+    let rightshifts[10] = 1024;
+    let rightshifts[11] = 2048;
+    let rightshifts[12] = 4096;
+    let rightshifts[13] = 8192;
+    let rightshifts[14] = 16384;
+    return;
+  }
 
   // Jack doesn't have these, so we need to reimplement them.
   function int arith_rightshift(int x, int n) {
@@ -17,18 +38,11 @@ class Int32 {
       return x;
     }
 
-    let r = x;
-
     if (x > 0) {
-      let i = 0;
-      while (i < n) {
-        let r = r / 2;
-        if (r = 0) {
-            return r;
-        }
-        let i = i + 1;
-      }
+      let r = x / rightshifts[n];
     } else {
+      let r = x;
+
       let i = 0;
       while (i < n) {
         let divided = r / 2;
@@ -37,7 +51,7 @@ class Int32 {
         } else {
           let r = divided - 1;
         }
-        if (r = 0) {
+        if (r = -1) {
             return r;
         }
 
@@ -70,6 +84,7 @@ class Int32 {
     var int k;
     var int i;
     var int t;
+    var int vj;
     let w = Array.new(16);
 
     let i = 0;
@@ -82,12 +97,14 @@ class Int32 {
     while (j < 8) {
       let k = 0;
 
+      let vj = v[j];
+
       let i = 0;
       while (i < 8) {
         // Perform signed 16-bit math that will never overflow because we only put u4s into it!
         // u4 * u4 = u8, which fits in a int.
         // We can't do use u8s because u8 * u8 = u16 and u16s don't fit in int.
-        let t = (u[i] * v[j]) + w[i + j] + k;
+        let t = (u[i] * vj) + w[i + j] + k;
         let w[i + j] = t & 15;
         let k = Int32.arith_rightshift(t, 4);
 
@@ -426,6 +443,8 @@ class Int32 {
     var Array other_parts_expanded;
     var Array result;
 
+    var int right_shift_bytes_2;
+
     let abs1 = null;
     let abs2 = null;
     let is_result_neg = Int32.xor(is_negative(), other.is_negative());
@@ -468,14 +487,16 @@ class Int32 {
 
     let result = Int32.u4_array_mul_u4_array(self_parts_expanded, other_parts_expanded);
 
+    let right_shift_bytes_2 = right_shift_bytes * 2;
+
     let parts[0] =
-      result[(right_shift_bytes * 2) + 0] + (result[(right_shift_bytes * 2) + 1] * 16);
+      result[right_shift_bytes_2 + 0] + (result[right_shift_bytes_2 + 1] * 16);
     let parts[1] =
-      result[(right_shift_bytes * 2) + 2] + (result[(right_shift_bytes * 2) + 3] * 16);
+      result[right_shift_bytes_2 + 2] + (result[right_shift_bytes_2 + 3] * 16);
     let parts[2] =
-      result[(right_shift_bytes * 2) + 4] + (result[(right_shift_bytes * 2) + 5] * 16);
+      result[right_shift_bytes_2 + 4] + (result[right_shift_bytes_2 + 5] * 16);
     let parts[3] =
-      result[(right_shift_bytes * 2) + 6] + (result[(right_shift_bytes * 2) + 7] * 16);
+      result[right_shift_bytes_2 + 6] + (result[right_shift_bytes_2 + 7] * 16);
 
     if (is_result_neg) {
       do do_neg();
@@ -761,11 +782,11 @@ class Int32 {
   }
 
   method boolean is_negative()  {
-    return Int32.arith_rightshift(parts[3], 7) = 1;
+    return (parts[3] > 128) | (parts[3] = 128);
   }
 
   method boolean is_positive()  {
-    return (~is_zero()) & (Int32.arith_rightshift(parts[3], 7) = 0);
+    return (~is_zero()) & (parts[3] < 128);
   }
 
   method int cmp(Int32 other) {

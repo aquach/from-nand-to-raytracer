@@ -422,6 +422,7 @@ class Main {
 
     var Number n;
 
+    do Int32.initialize();
     do Number.initialize();
 
     let nElements = 5;
@@ -516,8 +517,8 @@ class Main {
     let lights[2] = DirectionalLight.new(d2, Main.getThreeTenths());
 
     let scene = Scene.new(
-        512,
-        256,
+        51,
+        25,
         elements,
         nElements,
         lights,

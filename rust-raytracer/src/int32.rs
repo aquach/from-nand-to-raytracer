@@ -14,12 +14,8 @@ fn arith_rightshift(x: i16, n: i16) -> i16 {
     let mut r = x;
 
     if x > 0 {
-        for _ in 0..n {
-            r = r / 2;
-            if r == 0 {
-                return r;
-            }
-        }
+        let i = [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ];
+        r = r / i[usize::try_from(n).unwrap()];
     } else {
         for _ in 0..n {
             let divided = r / 2;
@@ -28,7 +24,7 @@ fn arith_rightshift(x: i16, n: i16) -> i16 {
             } else {
                 divided - 1
             };
-            if r == 0 {
+            if r == -1 {
                 return r;
             }
         }
@@ -54,11 +50,12 @@ fn u4_array_mul_u4_array(u: &[i16; 8], v: &[i16; 8]) -> [i16; 16] {
 
     for j in 0..8 {
         let mut k = 0;
+        let vj = v[j];
         for i in 0..8 {
             // Perform signed 16-bit math that will never overflow because we only put u4s into it!
             // u4 * u4 = u8, which fits in a i16.
             // We can't do use u8s because u8 * u8 = u16 and u16s don't fit in i16.
-            let t = u[i] * v[j] + w[i + j] + k;
+            let t = u[i] * vj + w[i + j] + k;
             w[i + j] = t & 0x0F;
             k = arith_rightshift(t, 4);
         }
@@ -335,16 +332,18 @@ impl Int32 {
 
         let result = u4_array_mul_u4_array(&self_parts_expanded, &other_parts_expanded);
 
-        self.parts[0] =
-            result[(right_shift_bytes * 2) + 0] + result[(right_shift_bytes * 2) + 1] * 16;
-        self.parts[1] =
-            result[(right_shift_bytes * 2) + 2] + result[(right_shift_bytes * 2) + 3] * 16;
-        self.parts[2] =
-            result[(right_shift_bytes * 2) + 4] + result[(right_shift_bytes * 2) + 5] * 16;
-        self.parts[3] =
-            result[(right_shift_bytes * 2) + 6] + result[(right_shift_bytes * 2) + 7] * 16;
+        let right_shift_bytes_2 = right_shift_bytes * 2;
 
-        if (right_shift_bytes * 2) + 8 < 16 && result[(right_shift_bytes * 2) + 8] != 0 {
+        self.parts[0] =
+            result[right_shift_bytes_2 + 0] + result[right_shift_bytes_2 + 1] * 16;
+        self.parts[1] =
+            result[right_shift_bytes_2 + 2] + result[right_shift_bytes_2 + 3] * 16;
+        self.parts[2] =
+            result[right_shift_bytes_2 + 4] + result[right_shift_bytes_2 + 5] * 16;
+        self.parts[3] =
+            result[right_shift_bytes_2 + 6] + result[right_shift_bytes_2 + 7] * 16;
+
+        if right_shift_bytes_2 + 8 < 16 && result[right_shift_bytes_2 + 8] != 0 {
             panic!(
                 "Overflow occurred multiplying {} by {} (and then right shift by {}). Result before shift: {:?}",
                 self, other, right_shift_bytes, result
@@ -1020,6 +1019,16 @@ mod test {
     #[case(100, 3)]
     #[case(10000, 3)]
     #[case(10000, 1)]
+    #[case(-15, 2)]
+    #[case(-14, 2)]
+    #[case(-13, 2)]
+    #[case(-12, 2)]
+    #[case(-11, 2)]
+    #[case(-15, 1)]
+    #[case(-14, 1)]
+    #[case(-13, 1)]
+    #[case(-12, 1)]
+    #[case(-11, 1)]
     #[case(-5, 1)]
     #[case(-4, 1)]
     #[case(-3, 1)]
