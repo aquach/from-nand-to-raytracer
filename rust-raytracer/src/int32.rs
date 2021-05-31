@@ -1,16 +1,30 @@
-use std::fmt;
 use std::convert::TryFrom;
+use std::fmt;
 
 // Jack doesn't have these, so we need to reimplement them.
 fn arith_rightshift(x: i16, n: i16) -> i16 {
+    if x == 0 {
+        return 0;
+    }
+
+    if n == 0 {
+        return x;
+    }
+
     let mut r = x;
 
-    for _ in 0..n {
-        let divided = r / 2;
-        r = if r < 0 && divided * 2 != r {
-            divided - 1
-        } else {
-            divided
+    if x > 0 {
+        for _ in 0..n {
+            r = r / 2;
+        }
+    } else {
+        for _ in 0..n {
+            let divided = r / 2;
+            r = if divided * 2 == r {
+                divided
+            } else {
+                divided - 1
+            }
         }
     }
 
@@ -583,14 +597,46 @@ impl Int32 {
     }
 
     fn validate(&self) {
-        assert!(self.parts[0] >= 0, "Encountered bad state: {:?}", self.parts);
-        assert!(self.parts[0] <= 255, "Encountered bad state: {:?}", self.parts);
-        assert!(self.parts[1] >= 0, "Encountered bad state: {:?}", self.parts);
-        assert!(self.parts[1] <= 255, "Encountered bad state: {:?}", self.parts);
-        assert!(self.parts[2] >= 0, "Encountered bad state: {:?}", self.parts);
-        assert!(self.parts[2] <= 255, "Encountered bad state: {:?}", self.parts);
-        assert!(self.parts[3] >= 0, "Encountered bad state: {:?}", self.parts);
-        assert!(self.parts[3] <= 255, "Encountered bad state: {:?}", self.parts);
+        assert!(
+            self.parts[0] >= 0,
+            "Encountered bad state: {:?}",
+            self.parts
+        );
+        assert!(
+            self.parts[0] <= 255,
+            "Encountered bad state: {:?}",
+            self.parts
+        );
+        assert!(
+            self.parts[1] >= 0,
+            "Encountered bad state: {:?}",
+            self.parts
+        );
+        assert!(
+            self.parts[1] <= 255,
+            "Encountered bad state: {:?}",
+            self.parts
+        );
+        assert!(
+            self.parts[2] >= 0,
+            "Encountered bad state: {:?}",
+            self.parts
+        );
+        assert!(
+            self.parts[2] <= 255,
+            "Encountered bad state: {:?}",
+            self.parts
+        );
+        assert!(
+            self.parts[3] >= 0,
+            "Encountered bad state: {:?}",
+            self.parts
+        );
+        assert!(
+            self.parts[3] <= 255,
+            "Encountered bad state: {:?}",
+            self.parts
+        );
     }
 
     pub fn to_i32(&self) -> i32 {
@@ -992,6 +1038,9 @@ mod test {
     #[case(-2, 2)]
     #[case(-1, 2)]
     #[case(0, 1)]
+    #[case(1, 0)]
+    #[case(15, 0)]
+    #[case(0, 4)]
     fn test_arith_rightshift(#[case] x: i16, #[case] s: i16) {
         let actual = super::arith_rightshift(x, s);
         let expected = x >> s;

@@ -8,18 +8,35 @@ class Int32 {
     var int r;
     var int i;
     var int divided;
+
+    if (x = 0) {
+      return 0;
+    }
+
+    if (n = 0) {
+      return x;
+    }
+
     let r = x;
 
-    let i = 0;
-    while (i < n) {
-      let divided = r / 2;
-      if ((r < 0) & ~((divided * 2) = r)) {
-        let r = divided - 1;
-      } else {
-        let r = divided;
+    if (x > 0) {
+      let i = 0;
+      while (i < n) {
+        let r = r / 2;
+        let i = i + 1;
       }
+    } else {
+      let i = 0;
+      while (i < n) {
+        let divided = r / 2;
+        if ((divided * 2) = r) {
+          let r = divided;
+        } else {
+          let r = divided - 1;
+        }
 
-      let i = i + 1;
+        let i = i + 1;
+      }
     }
 
     return r;
