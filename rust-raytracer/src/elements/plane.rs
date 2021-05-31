@@ -1,5 +1,5 @@
-use crate::Element;
 use crate::int32::Int32;
+use crate::Element;
 use crate::Number;
 use crate::Ray;
 use crate::Vec3;
@@ -118,7 +118,7 @@ mod test {
                 z: Number::from(-1),
             },
             color: Number::from(0),
-            checkerboarded: false
+            checkerboarded: false,
         };
 
         let ray = Ray {

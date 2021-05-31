@@ -10,14 +10,12 @@ lazy_static! {
         x.do_mul(&y);
         x
     };
-
     static ref SCALE_FACTOR_SQRT_SQRT: Int32 = {
         let mut s = SCALE_FACTOR.clone();
         s.do_sqrt();
         s.do_sqrt();
         s
     };
-
     static ref SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3: Int32 = {
         let mut s = SCALE_FACTOR.clone();
         s.do_sqrt();
@@ -31,7 +29,6 @@ lazy_static! {
 
         s
     };
-
     pub static ref PI: Number = {
         let mut x = Int32::from(561);
         let y = Int32::from(367);

@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::int32::Int32;
+use std::fmt;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
