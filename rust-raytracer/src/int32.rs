@@ -19,7 +19,7 @@ fn arith_rightshift(x: i16, n: i16) -> i16 {
     } else {
         for _ in 0..n {
             let divided = r / 2;
-            r = if divided * 2 == r {
+            r = if r & 1 == 0 {
                 divided
             } else {
                 divided - 1
@@ -650,6 +650,10 @@ impl Int32 {
             + (i32::from(self.parts[2]) << 16)
             + (i32::from(self.parts[3]) << 24)
     }
+
+    pub fn is_even(&self) -> bool {
+        (self.parts[0] & 0x1) == 0
+    }
 }
 
 impl fmt::Debug for Int32 {
@@ -1093,6 +1097,28 @@ mod test {
         assert_eq!(
             actual, expected,
             "{} < 0 = {} but got {}",
+            x, expected, actual
+        );
+    }
+
+    #[rstest]
+    #[case(-2147483648)]
+    #[case(-1024)]
+    #[case(-256)]
+    #[case(-255)]
+    #[case(-1)]
+    #[case(0)]
+    #[case(1)]
+    #[case(255)]
+    #[case(256)]
+    #[case(1024)]
+    #[case(2147483647)]
+    fn test_is_even(#[case] x: i32) {
+        let actual = Int32::from_i32(x).is_even();
+        let expected = x % 2 == 0;
+        assert_eq!(
+            actual, expected,
+            "is {} even? {}, but got {}",
             x, expected, actual
         );
     }

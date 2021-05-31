@@ -1,10 +1,28 @@
 class DirectionalLight {
     field Vec3 direction;
     field Number color;
+    field Vec3 neg_direction;
+    field Vec3 shadow_bias;
 
     constructor DirectionalLight new(Vec3 d, Number c) {
+      var Number neg1;
+      var Number epsilon;
+
+      let neg1 = Number.new(-1);
+      let epsilon = Main.getOneTwentieth();
+
       let direction = d;
       let color = c;
+
+      let neg_direction = direction.clone();
+      do neg_direction.do_scale(neg1);
+
+      let shadow_bias = neg_direction.clone();
+      do shadow_bias.do_scale(epsilon);
+
+      do neg1.dispose();
+      do epsilon.dispose();
+
       return this;
     }
 
@@ -17,6 +35,14 @@ class DirectionalLight {
 
     method Vec3 getDirection() {
       return direction;
+    }
+
+    method Vec3 getNegDirection() {
+      return neg_direction;
+    }
+
+    method Vec3 getShadowBias() {
+      return shadow_bias;
     }
 
     method Number getColor() {

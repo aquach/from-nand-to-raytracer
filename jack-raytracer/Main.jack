@@ -19,7 +19,6 @@ class Main {
     Scene scene,
     int x,
     int y,
-    Number epsilon,
     Number neg1,
     Number one,
     Number two,
@@ -32,8 +31,6 @@ class Main {
     var Vec3 offset;
     var Vec3 surface_normal;
 
-    var Vec3 direction_to_light;
-    var Vec3 shadow_bias;
     var Vec3 origin;
     var Ray shadow_ray;
     var Intersection shadow_intersection;
@@ -69,17 +66,11 @@ class Main {
         let lights = scene.getLights();
         let light = lights[i];
 
-        let v = light.getDirection();
-        let direction_to_light = v.clone();
-        do direction_to_light.do_scale(neg1);
-
-        let shadow_bias = direction_to_light.clone();
-        do shadow_bias.do_scale(epsilon);
-
         let origin = hit_point.clone();
-        do origin.do_add(shadow_bias);
+        do origin.do_add(light.getShadowBias());
 
-        let shadow_ray = Ray.new(origin, direction_to_light);
+        let v = light.getNegDirection();
+        let shadow_ray = Ray.new(origin, v.clone());
         let shadow_intersection = scene.trace(shadow_ray);
         let in_light = (shadow_intersection = null);
 
@@ -88,7 +79,7 @@ class Main {
         }
 
         if (in_light) {
-          let light_power = surface_normal.dot(direction_to_light);
+          let light_power = surface_normal.dot(light.getNegDirection());
 
           if (light_power.is_positive()) {
             let n = light.getColor();
@@ -109,7 +100,6 @@ class Main {
           do light_power.dispose();
         }
 
-        do shadow_bias.dispose();
         do shadow_ray.dispose();
 
         let i = i + 1;
@@ -128,7 +118,6 @@ class Main {
 
   function void render(Scene scene) {
       var Number half;
-      var Number epsilon;
       var Number zero;
       var Number one;
       var Number two;
@@ -173,7 +162,6 @@ class Main {
       /* } */
 
       let half = Main.getOneHalf();
-      let epsilon = Main.getOneTwentieth();
       let zero = Number.new(0);
       let one = Number.new(1);
       let two = Number.new(2);
@@ -187,7 +175,7 @@ class Main {
       while (y < scene.getHeight()) {
         let x = 0;
         while (x < scene.getWidth()) {
-          let pixel_color = Main.getRawPixelColor(scene, x, y, epsilon, neg1, one, two, half);
+          let pixel_color = Main.getRawPixelColor(scene, x, y, neg1, one, two, half);
 
           // Poor math's gamma correction :sob: sqrt() is much easier than 1/2.2
           do pixel_color.do_sqrt();
@@ -267,7 +255,6 @@ class Main {
       }
 
       do half.dispose();
-      do epsilon.dispose();
       do zero.dispose();
       do one.dispose();
       do three.dispose();
@@ -424,6 +411,7 @@ class Main {
 
     do Int32.initialize();
     do Number.initialize();
+    do Plane.initialize();
 
     let nElements = 5;
     let elements = Array.new(nElements);
@@ -488,7 +476,7 @@ class Main {
             Number.new(0)
             ),
           Number.new(-1),
-          false // TODO switch back to true
+          true
           ));
 
     let d0 = Vec3.new(
@@ -517,8 +505,8 @@ class Main {
     let lights[2] = DirectionalLight.new(d2, Main.getThreeTenths());
 
     let scene = Scene.new(
-        51,
-        25,
+        10,
+        10,
         elements,
         nElements,
         lights,

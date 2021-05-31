@@ -46,7 +46,7 @@ class Int32 {
       let i = 0;
       while (i < n) {
         let divided = r / 2;
-        if ((divided * 2) = r) {
+        if (r & 1 = 0) {
           let r = divided;
         } else {
           let r = divided - 1;
@@ -837,5 +837,9 @@ class Int32 {
     do Output.printInt(allocs);
     do Output.println();
     return;
+  }
+
+  method boolean is_even() {
+    return (parts[0] & 1) = 0;
   }
 }

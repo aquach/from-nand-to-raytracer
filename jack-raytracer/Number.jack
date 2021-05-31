@@ -144,6 +144,7 @@ class Number {
   }
 
   method Int32 to_int32() {
+    let allocs = allocs - 1;
     do v.do_right_shift_bytes(BYTES_FOR_FRAC);
     do Memory.deAlloc(this);
     return v;

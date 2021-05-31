@@ -5,6 +5,13 @@ class Plane {
   field Number color;
   field boolean checkerboarded;
 
+  static Vec3 forward;
+  static Vec3 up;
+  static Number thousand;
+  static Number scale;
+  static Number white;
+  static Number black;
+
   constructor Plane new(Vec3 o, Vec3 n, Number c, boolean ch) {
     let origin = o;
     let normal = n;
@@ -18,6 +25,35 @@ class Plane {
     do normal.dispose();
     do color.dispose();
     do Memory.deAlloc(this);
+    return;
+  }
+
+  function void initialize() {
+    var Number hundred;
+
+    let forward = Vec3.new(
+        Number.new(0),
+        Number.new(0),
+        Number.new(1)
+        );
+    let up = Vec3.new(
+        Number.new(0),
+        Number.new(1),
+        Number.new(0)
+        );
+
+    let thousand = Number.new(1000);
+
+    let scale = Number.new(1);
+
+    let white = Number.new(90);
+    let black = Number.new(3);
+
+    let hundred = Number.new(100);
+    do white.do_div(hundred);
+    do black.do_div(hundred);
+    do hundred.dispose();
+
     return;
   }
 
@@ -52,50 +88,28 @@ class Plane {
 
   method Vec3 color(Vec3 hit_point) {
     var Vec3 x_axis;
-    var Vec3 forward;
-    var Vec3 up;
     var Vec3 y_axis;
     var Number dist_sq;
 
-    var Number scale;
     var Number v;
     var Int32 x;
     var Int32 y;
-    var Number sum;
-    var Number halftwice;
+    var Int32 sum;
     var Number n;
 
-    var Number thousand;
-    var Number hundred;
-    var Int32 two;
-
     if (checkerboarded) {
-      let thousand = Number.new(1000);
-      let hundred = Number.new(100);
-      let two = Int32.new(2);
-
       let x_axis = normal.clone();
-      let forward = Vec3.new(
-          Number.new(0),
-          Number.new(0),
-          Number.new(1)
-          );
-      let up = Vec3.new(
-          Number.new(0),
-          Number.new(1),
-          Number.new(0)
-          );
       do x_axis.do_cross(forward);
 
       let dist_sq = x_axis.dist_sq();
       if (dist_sq.is_zero()) {
+        do x_axis.dispose();
+        let x_axis = normal.clone();
         do x_axis.do_cross(up);
       }
 
       let y_axis = normal.clone();
       do y_axis.do_cross(x_axis);
-
-      let scale = Number.new(1);
 
       let v = hit_point.dot(x_axis);
       do v.do_mul(scale);
@@ -110,33 +124,19 @@ class Plane {
       let sum = x.clone();
       do sum.do_add(y);
 
-      let halftwice = sum.clone();
-      do halftwice.do_div(two);
-      do halftwice.do_mul(two);
-
-      if (sum.cmp(halftwice) = 0) {
-        let n = Number.new(90);
+      if (sum.is_even()) {
+        let n = white.clone();
       } else {
-        let n = Number.new(3);
+        let n = black.clone();
       }
 
-      do n.do_div(hundred);
-
       do x_axis.dispose();
-      do forward.dispose();
-      do up.dispose();
       do y_axis.dispose();
       do dist_sq.dispose();
 
-      do scale.dispose();
       do x.dispose();
       do y.dispose();
       do sum.dispose();
-      do halftwice.dispose();
-
-      do thousand.dispose();
-      do hundred.dispose();
-      do two.dispose();
 
       return n;
     } else {
