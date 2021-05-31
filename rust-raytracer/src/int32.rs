@@ -576,11 +576,11 @@ impl Int32 {
     }
 
     pub fn is_negative(&self) -> bool {
-        arith_rightshift(self.parts[3], 7) == 1
+        self.parts[3] >= 128
     }
 
     pub fn is_positive(&self) -> bool {
-        !self.is_zero() && arith_rightshift(self.parts[3], 7) == 0
+        !self.is_zero() && self.parts[3] < 128
     }
 
     pub fn do_zero(&mut self) {
@@ -853,19 +853,6 @@ mod test {
     }
 
     #[test]
-    fn test_is_negative() {
-        assert_eq!(Int32::from(0).is_negative(), false);
-
-        assert_eq!(Int32::from(-1).is_negative(), true);
-        assert_eq!(Int32::from(-2).is_negative(), true);
-        assert_eq!(Int32::from(-30000).is_negative(), true);
-
-        assert_eq!(Int32::from(1).is_negative(), false);
-        assert_eq!(Int32::from(2).is_negative(), false);
-        assert_eq!(Int32::from(30000).is_negative(), false);
-    }
-
-    #[test]
     fn test_neg() {
         let mut x = Int32::from(0);
         x.do_neg();
@@ -1054,6 +1041,50 @@ mod test {
             actual, expected,
             "{} >> {} = {} but got {}",
             x, s, expected, actual
+        );
+    }
+
+    #[rstest]
+    #[case(-2147483648)]
+    #[case(-1024)]
+    #[case(-256)]
+    #[case(-255)]
+    #[case(-1)]
+    #[case(0)]
+    #[case(1)]
+    #[case(255)]
+    #[case(256)]
+    #[case(1024)]
+    #[case(2147483647)]
+    fn test_is_negative(#[case] x: i32) {
+        let actual = Int32::from_i32(x).is_negative();
+        let expected = x < 0;
+        assert_eq!(
+            actual, expected,
+            "{} < 0 = {} but got {}",
+            x, expected, actual
+        );
+    }
+
+    #[rstest]
+    #[case(-2147483648)]
+    #[case(-1024)]
+    #[case(-256)]
+    #[case(-255)]
+    #[case(-1)]
+    #[case(0)]
+    #[case(1)]
+    #[case(255)]
+    #[case(256)]
+    #[case(1024)]
+    #[case(2147483647)]
+    fn test_is_positive(#[case] x: i32) {
+        let actual = Int32::from_i32(x).is_positive();
+        let expected = x > 0;
+        assert_eq!(
+            actual, expected,
+            "{} < 0 = {} but got {}",
+            x, expected, actual
         );
     }
 }
