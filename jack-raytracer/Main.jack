@@ -134,7 +134,7 @@ class Main {
       var Array dither_pixels;
       var Array next_dither_pixels;
       var Array temp;
-      var Number adjacent_dither;
+      var int adjacent_dither;
 
       var Number quantized_color;
       var int cmp;
@@ -148,18 +148,16 @@ class Main {
       var Number pixel_color;
       var Number n;
 
-      /* let dither_pixels = Array.new(scene.getWidth()); */
-      /* let next_dither_pixels = Array.new(scene.getWidth()); */
-      /* let adjacent_dither = Number.new(0); */
+      let dither_pixels = Array.new(scene.getWidth());
+      let next_dither_pixels = Array.new(scene.getWidth());
+      let adjacent_dither = 0;
 
-      /* let i = 0; */
-      /* while (i < scene.getWidth()) { */
-      /*   do Output.printInt(i); */
-      /*   do Output.println(); */
-      /*   let dither_pixels[i] = Number.new(0); */
-      /*   let next_dither_pixels[i] = Number.new(0); */
-      /*   let i = i + 1; */
-      /* } */
+      let i = 0;
+      while (i < scene.getWidth()) {
+        let dither_pixels[i] = 0;
+        let next_dither_pixels[i] = 0;
+        let i = i + 1;
+      }
 
       let half = Main.getOneHalf();
       let zero = Number.new(0);
@@ -182,8 +180,12 @@ class Main {
 
           /* // Bring in the value from the dithering. We want to dither _after_ gamma correction. */
           /* // Dithered pixels represent gamma-encoded values already. */
-          /* do pixel_color.do_add(adjacent_dither); */
-          /* do pixel_color.do_add(dither_pixels[x]); */
+          let n = Number.new_from_int_frac(adjacent_dither);
+          do pixel_color.do_add(n);
+          do n.dispose();
+          let n = Number.new_from_int_frac(dither_pixels[x]);
+          do pixel_color.do_add(n);
+          do n.dispose();
 
           // Perform dithering.
 
@@ -195,40 +197,36 @@ class Main {
             let quantized_color = zero;
           }
 
-          /* let quant_error = pixel_color.clone(); */
-          /* do quant_error.do_sub(quantized_color); */
-          /* do quant_error.do_div(sixteen); */
+          let quant_error = pixel_color.clone();
+          do quant_error.do_sub(quantized_color);
+          do quant_error.do_div(sixteen);
 
-          /* if (x + 1 < scene.getWidth()) { */
-          /*   let quant_error_7 = quant_error.clone(); */
-          /*   do quant_error_7.do_mul(seven); */
-          /*   do adjacent_dither.do_zero(); */
-          /*   do adjacent_dither.do_add(quant_error_7); */
-          /*   do quant_error_7.dispose(); */
-          /* } */
+          if (x + 1 < scene.getWidth()) {
+            let quant_error_7 = quant_error.clone();
+            do quant_error_7.do_mul(seven);
+            let adjacent_dither = quant_error_7.frac_to_i16();
+            do quant_error_7.dispose();
+          }
 
-          /* if (y + 1 < scene.getHeight()) { */
-          /*   if ((x > 1) | (x = 0)) { */
-          /*     let quant_error_3 = quant_error.clone(); */
-          /*     do quant_error_3.do_mul(three); */
-          /*     let n = next_dither_pixels[x - 1]; */
-          /*     do n.do_add(quant_error_3); */
-          /*     do quant_error_3.dispose(); */
-          /*   } */
+          if (y + 1 < scene.getHeight()) {
+            if (x > 0) {
+              let quant_error_3 = quant_error.clone();
+              do quant_error_3.do_mul(three);
+              let next_dither_pixels[x - 1] = next_dither_pixels[x - 1] + quant_error_3.frac_to_i16();
+              do quant_error_3.dispose();
+            }
 
-          /*   let quant_error_5 = quant_error.clone(); */
-          /*   do quant_error_5.do_mul(five); */
-          /*   let n = next_dither_pixels[x]; */
-          /*   do n.do_add(quant_error_5); */
-          /*   do quant_error_5.dispose(); */
+            let quant_error_5 = quant_error.clone();
+            do quant_error_5.do_mul(five);
+            let next_dither_pixels[x] = next_dither_pixels[x] + quant_error_5.frac_to_i16();
+            do quant_error_5.dispose();
 
-          /*   if (x + 1 < scene.getWidth()) { */
-          /*     let n = next_dither_pixels[x + 1]; */
-          /*     do n.do_add(quant_error); */
-          /*   } */
-          /* } */
+            if (x + 1 < scene.getWidth()) {
+              let next_dither_pixels[x + 1] = next_dither_pixels[x + 1] + quant_error.frac_to_i16();
+            }
+          }
 
-          /* do quant_error.dispose(); */
+          do quant_error.dispose();
 
           do Screen.setColor(~is_white);
           do Screen.drawPixel(x, y);
@@ -239,17 +237,16 @@ class Main {
         }
 
         // Flip dither.
-        /* let temp = dither_pixels; */
-        /* let dither_pixels = next_dither_pixels; */
-        /* let next_dither_pixels = temp; */
+        let temp = dither_pixels;
+        let dither_pixels = next_dither_pixels;
+        let next_dither_pixels = temp;
 
-        /* // Zero out next dither. */
-        /* let i = 0; */
-        /* while (i < scene.getWidth()) { */
-        /*   let n = next_dither_pixels[i]; */
-        /*   do n.do_zero(); */
-        /*   let i = i + 1; */
-        /* } */
+        // Zero out next dither.
+        let i = 0;
+        while (i < scene.getWidth()) {
+          let next_dither_pixels[i] = 0;
+          let i = i + 1;
+        }
 
         let y = y + 1;
       }
@@ -262,18 +259,8 @@ class Main {
       do seven.dispose();
       do sixteen.dispose();
 
-      let i = 0;
-      while (i < scene.getWidth()) {
-        let n = dither_pixels[i];
-        do n.dispose();
-        let n = next_dither_pixels[i];
-        do n.dispose();
-        let i = i + 1;
-      }
-
       do dither_pixels.dispose();
       do next_dither_pixels.dispose();
-      do adjacent_dither.dispose();
 
       return;
   }
@@ -505,8 +492,8 @@ class Main {
     let lights[2] = DirectionalLight.new(d2, Main.getThreeTenths());
 
     let scene = Scene.new(
-        10,
-        10,
+        100,
+        50,
         elements,
         nElements,
         lights,

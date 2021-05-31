@@ -54,6 +54,22 @@ impl Number {
         self.0
     }
 
+    pub fn from_i16_frac(i: i16) -> Number {
+      let mut v = Int32::from(i);
+      v.do_mul(&Int32::from(2));
+      Number(v)
+    }
+
+    pub fn frac_to_i16(&self) -> i16 {
+      let parts = self.0.parts;
+
+      if self.is_negative() {
+          return -((255 - parts[1]) * 128 + (256 - parts[0]) / 2);
+      } else {
+          return parts[1] * 128 + (parts[0] / 2);
+      }
+    }
+
     pub fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
@@ -364,6 +380,76 @@ mod test {
         assert!(
             f64::abs(actual - expected) / (expected + 0.001) <= 0.01,
             "sqrt({}) = {} but got {}",
+            x,
+            expected,
+            actual
+        );
+    }
+
+    #[rstest]
+    #[case(-20)]
+    #[case(-220)]
+    #[case(-420)]
+    #[case(-640)]
+    #[case(-730)]
+    #[case(-990)]
+    #[case(-1020)]
+    #[case(-1220)]
+    #[case(-1420)]
+    #[case(-1640)]
+    #[case(-1730)]
+    #[case(-1990)]
+    #[case(-1999)]
+    #[case(20)]
+    #[case(220)]
+    #[case(420)]
+    #[case(640)]
+    #[case(730)]
+    #[case(990)]
+    #[case(1020)]
+    #[case(1220)]
+    #[case(1420)]
+    #[case(1640)]
+    #[case(1730)]
+    #[case(1990)]
+    #[case(1999)]
+    fn test_frac_to_i16(#[case] x: i16) {
+        let mut result = Number::from(x);
+        result.do_div(&Number::from(1000));
+
+        println!("{} {:?}", result, result.0);
+
+        let actual = result.frac_to_i16();
+        let x = f64::from(x) / 1000.0;
+        let expected = (x.fract() * 32768.0) as i16;
+
+        assert_eq!(
+            actual, expected,
+            "fractional part of {} is {}, but got {}",
+            x, expected, actual
+        );
+    }
+
+    #[rstest]
+    #[case(0)]
+    #[case(250)]
+    #[case(1000)]
+    #[case(6000)]
+    #[case(30292)]
+    #[case(32766)]
+    #[case(-250)]
+    #[case(-1000)]
+    #[case(-6000)]
+    #[case(-30292)]
+    #[case(-32766)]
+    fn test_from_i16_frac(#[case] x: i16) {
+        let result = Number::from_i16_frac(x);
+        let actual = result.to_f64();
+        let expected = f64::from(x) / 32768.0;
+
+        assert!(
+            f64::abs(actual - expected) / (expected + 0.001) <= 0.01,
+            "number from {} / 32768 = {} but got {}",
             x,
             expected,
             actual

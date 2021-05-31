@@ -6,6 +6,8 @@ class Number {
   static Int32 SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3;
   static Number PI;
 
+  static Int32 two;
+
   static int allocs;
 
   function Number getPi() {
@@ -40,6 +42,8 @@ class Number {
     do u.dispose();
     do s.dispose();
 
+    let two = Int32.new(2);
+
     return;
   }
 
@@ -56,6 +60,26 @@ class Number {
 
     let v = i;
     return this;
+  }
+
+  constructor Number new_from_int_frac(int i) {
+    let allocs = allocs + 1;
+
+    let v = Int32.new(i);
+    do v.do_mul(two);
+
+    return this;
+  }
+
+  method int frac_to_i16() {
+    var Array parts;
+    let parts = v.getParts();
+
+    if (is_negative()) {
+      return -((255 - parts[1]) * 128 + (256 - parts[0]) / 2);
+    } else {
+      return (parts[1] * 128) + (parts[0] / 2);
+    }
   }
 
   method void dispose() {
@@ -137,10 +161,6 @@ class Number {
 
   method boolean is_less_than(Number other)  {
     return v.cmp(other.getV()) < 0;
-  }
-
-  method Array getParts() {
-    return v.getParts();
   }
 
   method Int32 to_int32() {

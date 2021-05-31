@@ -116,9 +116,63 @@ impl Scene {
     }
 }
 
-pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
+pub fn get_raw_pixel_color(scene: &Scene, x: i16, y: i16) -> Number {
     let black = Number::from(0);
 
+    let ray = scene.create_prime_ray(x, y);
+
+    let intersection = scene.trace(&ray);
+
+    if let Some(i) = intersection {
+        let mut hit_point = ray.origin;
+        let mut offset = ray.direction;
+        offset.do_scale(&i.distance_from_origin);
+        hit_point.do_add(&offset);
+
+        let surface_normal = i.object.surface_normal(&hit_point);
+
+        let mut color = Number::from(0);
+
+        for light in &scene.lights {
+            let mut direction_to_light = light.direction;
+            direction_to_light.do_scale(&Number::from(-1));
+
+            let mut shadow_bias = direction_to_light;
+            let mut epsilon = Number::from(1);
+            epsilon.do_div(&Number::from(20));
+            shadow_bias.do_scale(&epsilon);
+
+            let mut origin = hit_point;
+            origin.do_add(&shadow_bias);
+
+            let shadow_ray = Ray {
+                origin: origin,
+                direction: direction_to_light,
+            };
+            let in_light = scene.trace(&shadow_ray).is_none();
+
+            if in_light {
+                let mut light_power = surface_normal.dot(&direction_to_light);
+                if light_power.is_negative() {
+                    light_power = Number::from(0);
+                }
+
+                let mut added_color = light.color;
+                added_color.do_mul(&light_power);
+                added_color.do_div(&PI);
+                added_color.do_mul(&i.object.color(&hit_point));
+
+                color.do_add(&added_color);
+            }
+        }
+
+        color
+    } else {
+        black
+    }
+}
+
+pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
     let mut pixels = vec![];
     pixels.resize_with(scene.height.try_into().unwrap(), || {
         let mut row = vec![];
@@ -127,65 +181,16 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
     });
 
     let mut dither_pixels = vec![];
-    dither_pixels.resize_with(scene.height.try_into().unwrap(), || {
-        let mut row = vec![];
-        row.resize(scene.width.try_into().unwrap(), Number::from(0));
-        row
-    });
+    dither_pixels.resize(scene.width.try_into().unwrap(), 0i16);
+
+    let mut next_dither_pixels = vec![];
+    next_dither_pixels.resize(scene.width.try_into().unwrap(), 0i16);
+
+    let mut adjacent_dither = 0i16;
 
     for y in 0..scene.height {
         for x in 0..scene.width {
-            let ray = scene.create_prime_ray(x, y);
-
-            let intersection = scene.trace(&ray);
-
-            let color = if let Some(i) = intersection {
-                let mut hit_point = ray.origin;
-                let mut offset = ray.direction;
-                offset.do_scale(&i.distance_from_origin);
-                hit_point.do_add(&offset);
-
-                let surface_normal = i.object.surface_normal(&hit_point);
-
-                let mut color = Number::from(0);
-
-                for light in &scene.lights {
-                    let mut direction_to_light = light.direction;
-                    direction_to_light.do_scale(&Number::from(-1));
-
-                    let mut shadow_bias = direction_to_light;
-                    let mut epsilon = Number::from(1);
-                    epsilon.do_div(&Number::from(20));
-                    shadow_bias.do_scale(&epsilon);
-
-                    let mut origin = hit_point;
-                    origin.do_add(&shadow_bias);
-
-                    let shadow_ray = Ray {
-                        origin: origin,
-                        direction: direction_to_light,
-                    };
-                    let in_light = scene.trace(&shadow_ray).is_none();
-
-                    if in_light {
-                        let mut light_power = surface_normal.dot(&direction_to_light);
-                        if light_power.is_negative() {
-                            light_power = Number::from(0);
-                        }
-
-                        let mut added_color = light.color;
-                        added_color.do_mul(&light_power);
-                        added_color.do_div(&PI);
-                        added_color.do_mul(&i.object.color(&hit_point));
-
-                        color.do_add(&added_color);
-                    }
-                }
-
-                color
-            } else {
-                black
-            };
+            let color = get_raw_pixel_color(scene, x, y);
 
             let xi: usize = x.try_into().unwrap();
             let yi: usize = y.try_into().unwrap();
@@ -197,7 +202,8 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
 
             // Bring in the value from the dithering. We want to dither _after_ gamma correction.
             // Dithered pixels represent gamma-encoded values already.
-            pixels[yi][xi].do_add(&dither_pixels[yi][xi]);
+            pixels[yi][xi].do_add(&Number::from_i16_frac(adjacent_dither));
+            pixels[yi][xi].do_add(&Number::from_i16_frac(dither_pixels[xi]));
 
             // Perform dithering.
             if DO_DITHERING {
@@ -210,6 +216,7 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
                 } else {
                     Number::from(0)
                 };
+
                 let mut quant_error = pixels[yi][xi];
                 quant_error.do_sub(&new_color);
                 quant_error.do_div(&Number::from(16));
@@ -217,28 +224,35 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
                 if x + 1 < scene.width {
                     let mut quant_error_7 = quant_error;
                     quant_error_7.do_mul(&Number::from(7));
-                    dither_pixels[yi][xi + 1].do_add(&quant_error_7);
+                    adjacent_dither = quant_error_7.frac_to_i16();
                 }
 
                 if y + 1 < scene.height {
                     if x >= 1 {
                         let mut quant_error_3 = quant_error;
                         quant_error_3.do_mul(&Number::from(3));
-                        dither_pixels[yi + 1][xi - 1].do_add(&quant_error_3);
+                        next_dither_pixels[xi - 1] += quant_error_3.frac_to_i16();
                     }
 
                     let mut quant_error_5 = quant_error;
                     quant_error_5.do_mul(&Number::from(5));
-                    dither_pixels[yi + 1][xi].do_add(&quant_error_5);
+                    next_dither_pixels[xi] += quant_error_5.frac_to_i16();
 
                     if x + 1 < scene.width {
-                        dither_pixels[yi + 1][xi + 1].do_add(&quant_error);
+                        next_dither_pixels[xi + 1] += quant_error.frac_to_i16();
                     }
                 }
 
                 pixels[yi][xi] = new_color;
             }
         }
+
+        std::mem::swap(&mut dither_pixels, &mut next_dither_pixels);
+
+        for x in next_dither_pixels.iter_mut() {
+            *x = 0;
+        }
+
         eprint!(".");
     }
 

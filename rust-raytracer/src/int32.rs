@@ -171,7 +171,7 @@ fn u4_array_div_u4_array(u: &[i16; 16], v: &[i16; 8], v_size: usize) -> [i16; 16
 
 #[derive(Clone, Copy)]
 pub struct Int32 {
-    parts: [i16; 4], // Upper byte of each i16 is empty, which helps annoying overflow issues.
+    pub parts: [i16; 4], // Upper byte of each i16 is empty, which helps annoying overflow issues.
 }
 
 impl Int32 {

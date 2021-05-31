@@ -29,7 +29,7 @@ class Scene {
   method void dispose() {
     var int i;
     var Element e;
-    var Light l;
+    var DirectionalLight l;
 
     let i = 0;
     while (i < nElements) {
