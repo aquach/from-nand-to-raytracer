@@ -23,6 +23,9 @@ class Int32 {
       let i = 0;
       while (i < n) {
         let r = r / 2;
+        if (r = 0) {
+            return r;
+        }
         let i = i + 1;
       }
     } else {
@@ -33,6 +36,9 @@ class Int32 {
           let r = divided;
         } else {
           let r = divided - 1;
+        }
+        if (r = 0) {
+            return r;
         }
 
         let i = i + 1;

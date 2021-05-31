@@ -16,6 +16,9 @@ fn arith_rightshift(x: i16, n: i16) -> i16 {
     if x > 0 {
         for _ in 0..n {
             r = r / 2;
+            if r == 0 {
+                return r;
+            }
         }
     } else {
         for _ in 0..n {
@@ -24,6 +27,9 @@ fn arith_rightshift(x: i16, n: i16) -> i16 {
                 divided
             } else {
                 divided - 1
+            };
+            if r == 0 {
+                return r;
             }
         }
     }
