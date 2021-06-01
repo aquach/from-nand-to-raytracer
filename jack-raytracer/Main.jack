@@ -138,15 +138,19 @@ class Main {
 
       var Number quantized_color;
       var int cmp;
-      var Number quant_error;
-      var Number quant_error_3;
-      var Number quant_error_5;
-      var Number quant_error_7;
+      var Number quant_error_16;
+      var Number quant_error_5_16;
+      var Number quant_error_7_16;
+      var Number quant_error_left;
+      var Number quant_error_right;
 
       var boolean is_white;
 
       var Number pixel_color;
       var Number n;
+
+      var boolean reverse_x;
+      var boolean continue;
 
       let dither_pixels = Array.new(scene.getWidth());
       let next_dither_pixels = Array.new(scene.getWidth());
@@ -171,8 +175,17 @@ class Main {
 
       let y = 0;
       while (y < scene.getHeight()) {
-        let x = 0;
-        while (x < scene.getWidth()) {
+        let reverse_x = ~((y / 2 * 2) = y);
+
+        let continue = true;
+
+        if (reverse_x) {
+          let x = scene.getWidth() - 1;
+        } else {
+          let x = 0;
+        }
+
+        while (continue) {
           let pixel_color = Main.getRawPixelColor(scene, x, y, neg1, one, two, half);
 
           // Poor math's gamma correction :sob: sqrt() is much easier than 1/2.2
@@ -197,43 +210,56 @@ class Main {
             let quantized_color = zero;
           }
 
-          let quant_error = pixel_color.clone();
-          do quant_error.do_sub(quantized_color);
-          do quant_error.do_div(sixteen);
+          let quant_error_16 = pixel_color.clone();
+          do quant_error_16.do_sub(quantized_color);
+          do quant_error_16.do_div(sixteen);
 
           if (x + 1 < scene.getWidth()) {
-            let quant_error_7 = quant_error.clone();
-            do quant_error_7.do_mul(seven);
-            let adjacent_dither = quant_error_7.frac_to_i16();
-            do quant_error_7.dispose();
+            let quant_error_7_16 = quant_error_16.clone();
+            do quant_error_7_16.do_mul(seven);
+            let adjacent_dither = quant_error_7_16.frac_to_i16();
+            do quant_error_7_16.dispose();
           }
 
           if (y + 1 < scene.getHeight()) {
             if (x > 0) {
-              let quant_error_3 = quant_error.clone();
-              do quant_error_3.do_mul(three);
-              let next_dither_pixels[x - 1] = next_dither_pixels[x - 1] + quant_error_3.frac_to_i16();
-              do quant_error_3.dispose();
+              let quant_error_left = quant_error_16.clone();
+              if (~reverse_x) {
+                do quant_error_left.do_mul(three);
+              }
+              let next_dither_pixels[x - 1] = next_dither_pixels[x - 1] + quant_error_left.frac_to_i16();
+              do quant_error_left.dispose();
             }
 
-            let quant_error_5 = quant_error.clone();
-            do quant_error_5.do_mul(five);
-            let next_dither_pixels[x] = next_dither_pixels[x] + quant_error_5.frac_to_i16();
-            do quant_error_5.dispose();
+            let quant_error_5_16 = quant_error_16.clone();
+            do quant_error_5_16.do_mul(five);
+            let next_dither_pixels[x] = next_dither_pixels[x] + quant_error_5_16.frac_to_i16();
+            do quant_error_5_16.dispose();
 
             if (x + 1 < scene.getWidth()) {
-              let next_dither_pixels[x + 1] = next_dither_pixels[x + 1] + quant_error.frac_to_i16();
+              let quant_error_right = quant_error_16.clone();
+              if (reverse_x) {
+                do quant_error_right.do_mul(three);
+              }
+              let next_dither_pixels[x + 1] = next_dither_pixels[x + 1] + quant_error_right.frac_to_i16();
+              do quant_error_right.dispose();
             }
           }
 
-          do quant_error.dispose();
+          do quant_error_16.dispose();
 
           do Screen.setColor(~is_white);
           do Screen.drawPixel(x, y);
 
           do pixel_color.dispose();
 
-          let x = x + 1;
+          if (reverse_x) {
+            let x = x - 1;
+            let continue = x > -1;
+          } else {
+            let x = x + 1;
+            let continue = x < scene.getWidth();
+          }
         }
 
         // Flip dither.
