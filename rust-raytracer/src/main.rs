@@ -185,11 +185,18 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
 
     let mut next_dither_pixels = vec![];
     next_dither_pixels.resize(scene.width.try_into().unwrap(), 0i16);
-
     let mut adjacent_dither = 0i16;
 
     for y in 0..scene.height {
-        for x in 0..scene.width {
+        let reverse_x = y % 2 == 1;
+        let range = 0..scene.width;
+        let iter: Box<dyn Iterator<Item = _>> = if reverse_x {
+            Box::new(range.rev())
+        } else {
+            Box::new(range)
+        };
+
+        for x in iter {
             let color = get_raw_pixel_color(scene, x, y);
 
             let xi: usize = x.try_into().unwrap();
@@ -217,29 +224,35 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
                     Number::from(0)
                 };
 
-                let mut quant_error = pixels[yi][xi];
-                quant_error.do_sub(&new_color);
-                quant_error.do_div(&Number::from(16));
+                let mut quant_error_16 = pixels[yi][xi];
+                quant_error_16.do_sub(&new_color);
+                quant_error_16.do_div(&Number::from(16));
 
                 if x + 1 < scene.width {
-                    let mut quant_error_7 = quant_error;
+                    let mut quant_error_7 = quant_error_16;
                     quant_error_7.do_mul(&Number::from(7));
                     adjacent_dither = quant_error_7.frac_to_i16();
                 }
 
                 if y + 1 < scene.height {
-                    if x >= 1 {
-                        let mut quant_error_3 = quant_error;
-                        quant_error_3.do_mul(&Number::from(3));
-                        next_dither_pixels[xi - 1] += quant_error_3.frac_to_i16();
+                    if x > 0 {
+                        let mut quant_error_left = quant_error_16;
+                        if !reverse_x {
+                            quant_error_left.do_mul(&Number::from(3));
+                        }
+                        next_dither_pixels[xi - 1] += quant_error_left.frac_to_i16();
                     }
 
-                    let mut quant_error_5 = quant_error;
+                    let mut quant_error_5 = quant_error_16;
                     quant_error_5.do_mul(&Number::from(5));
                     next_dither_pixels[xi] += quant_error_5.frac_to_i16();
 
                     if x + 1 < scene.width {
-                        next_dither_pixels[xi + 1] += quant_error.frac_to_i16();
+                        let mut quant_error_right = quant_error_16;
+                        if reverse_x {
+                            quant_error_right.do_mul(&Number::from(3));
+                        }
+                        next_dither_pixels[xi + 1] += quant_error_right.frac_to_i16();
                     }
                 }
 
