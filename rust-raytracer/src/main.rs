@@ -279,8 +279,8 @@ pub fn to_rgba(color: &Number) -> image::Rgba<u8> {
 
 fn main() {
     let scene = Scene {
-        width: 128,
-        height: 64,
+        width: 512,
+        height: 256,
         elements: vec![
             Box::new(Sphere {
                 center: Vec3 {

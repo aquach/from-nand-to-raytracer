@@ -417,8 +417,6 @@ mod test {
         let mut result = Number::from(x);
         result.do_div(&Number::from(1000));
 
-        println!("{} {:?}", result, result.0);
-
         let actual = result.frac_to_i16();
         let x = f64::from(x) / 1000.0;
         let expected = (x.fract() * 32768.0) as i16;

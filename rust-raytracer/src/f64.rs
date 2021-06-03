@@ -14,6 +14,10 @@ impl Number {
         Number(f64::from(i))
     }
 
+    pub fn from_i16_frac(i: i16) -> Number {
+        Number(f64::from(i) * 32768.0)
+    }
+
     pub fn is_zero(&self) -> bool {
         self.0 == 0.0
     }
@@ -57,8 +61,13 @@ impl Number {
     pub fn to_f64(&self) -> f64 {
         self.0
     }
+
     pub fn to_int32(self) -> Int32 {
         Int32::from_i32(self.0 as i32)
+    }
+
+    pub fn frac_to_i16(&self) -> i16 {
+        (self.0.fract() * 32768.0) as i16
     }
 
     pub fn cmp(&self, other: &Number) -> i16 {
