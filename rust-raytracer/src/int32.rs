@@ -234,12 +234,12 @@ impl Int32 {
     }
 
     pub fn do_mul(&mut self, other: &Int32) {
-        self.do_mul_right_shift_slots(other, 0);
+        self.do_mul_right_shift_bytes(other, 0);
     }
 
-    pub fn do_right_shift_slots(&mut self, slots: usize) {
-        assert!(slots <= 3);
-        if slots == 0 {
+    pub fn do_right_shift_bytes(&mut self, bytes: usize) {
+        assert!(bytes <= 3);
+        if bytes == 0 {
             return;
         }
 
@@ -248,14 +248,14 @@ impl Int32 {
             self.do_neg();
         }
 
-        self.parts[0] = self.parts[slots];
-        self.parts[1] = if slots + 1 <= 3 {
-            self.parts[slots + 1]
+        self.parts[0] = self.parts[bytes];
+        self.parts[1] = if bytes + 1 <= 3 {
+            self.parts[bytes + 1]
         } else {
             0
         };
-        self.parts[2] = if slots + 2 <= 3 {
-            self.parts[slots + 2]
+        self.parts[2] = if bytes + 2 <= 3 {
+            self.parts[bytes + 2]
         } else {
             0
         };
@@ -268,22 +268,22 @@ impl Int32 {
         self.validate();
     }
 
-    pub fn do_left_shift_slots(&mut self, slots: usize) {
-        assert!(slots <= 3);
-        if slots == 0 {
+    pub fn do_left_shift_bytes(&mut self, bytes: usize) {
+        assert!(bytes <= 3);
+        if bytes == 0 {
             return;
         }
 
-        self.parts[3] = self.parts[3 - slots];
-        self.parts[2] = if 2 >= slots { self.parts[2 - slots] } else { 0 };
-        self.parts[1] = if 1 >= slots { self.parts[1 - slots] } else { 0 };
+        self.parts[3] = self.parts[3 - bytes];
+        self.parts[2] = if 2 >= bytes { self.parts[2 - bytes] } else { 0 };
+        self.parts[1] = if 1 >= bytes { self.parts[1 - bytes] } else { 0 };
         self.parts[0] = 0;
 
         self.validate();
     }
 
-    pub fn do_mul_right_shift_slots(&mut self, other: &Int32, right_shift_slots: usize) {
-        assert!(right_shift_slots <= 3);
+    pub fn do_mul_right_shift_bytes(&mut self, other: &Int32, right_shift_bytes: usize) {
+        assert!(right_shift_bytes <= 3);
 
         let self_parts: &[i16; 4];
         let other_parts: &[i16; 4];
@@ -332,21 +332,21 @@ impl Int32 {
 
         let result = u4_array_mul_u4_array(&self_parts_expanded, &other_parts_expanded);
 
-        let right_shift_slots_2 = right_shift_slots * 2;
+        let right_shift_bytes_2 = right_shift_bytes * 2;
 
         self.parts[0] =
-            result[right_shift_slots_2 + 0] + result[right_shift_slots_2 + 1] * 16;
+            result[right_shift_bytes_2 + 0] + result[right_shift_bytes_2 + 1] * 16;
         self.parts[1] =
-            result[right_shift_slots_2 + 2] + result[right_shift_slots_2 + 3] * 16;
+            result[right_shift_bytes_2 + 2] + result[right_shift_bytes_2 + 3] * 16;
         self.parts[2] =
-            result[right_shift_slots_2 + 4] + result[right_shift_slots_2 + 5] * 16;
+            result[right_shift_bytes_2 + 4] + result[right_shift_bytes_2 + 5] * 16;
         self.parts[3] =
-            result[right_shift_slots_2 + 6] + result[right_shift_slots_2 + 7] * 16;
+            result[right_shift_bytes_2 + 6] + result[right_shift_bytes_2 + 7] * 16;
 
-        if right_shift_slots_2 + 8 < 16 && result[right_shift_slots_2 + 8] != 0 {
+        if right_shift_bytes_2 + 8 < 16 && result[right_shift_bytes_2 + 8] != 0 {
             panic!(
                 "Overflow occurred multiplying {} by {} (and then right shift by {}). Result before shift: {:?}",
-                self, other, right_shift_slots, result
+                self, other, right_shift_bytes, result
             );
         }
 
@@ -358,11 +358,11 @@ impl Int32 {
     }
 
     pub fn do_div(&mut self, other: &Int32) {
-        self.do_left_shift_slots_div(0, other);
+        self.do_left_shift_bytes_div(0, other);
     }
 
-    pub fn do_left_shift_slots_div(&mut self, left_shift_slots: usize, other: &Int32) {
-        assert!(left_shift_slots <= 3);
+    pub fn do_left_shift_bytes_div(&mut self, left_shift_bytes: usize, other: &Int32) {
+        assert!(left_shift_bytes <= 3);
 
         if other.is_zero() {
             panic!("Divide by zero trying to divide {} by {}", self, other);
@@ -393,38 +393,38 @@ impl Int32 {
         }
 
         let self_parts_shifted: [i16; 8] = [
-            if left_shift_slots == 0 {
-                self_parts[0 - left_shift_slots]
+            if left_shift_bytes == 0 {
+                self_parts[0 - left_shift_bytes]
             } else {
                 0
             },
-            if left_shift_slots <= 1 {
-                self_parts[1 - left_shift_slots]
+            if left_shift_bytes <= 1 {
+                self_parts[1 - left_shift_bytes]
             } else {
                 0
             },
-            if left_shift_slots <= 2 {
-                self_parts[2 - left_shift_slots]
+            if left_shift_bytes <= 2 {
+                self_parts[2 - left_shift_bytes]
             } else {
                 0
             },
-            if left_shift_slots <= 3 {
-                self_parts[3 - left_shift_slots]
+            if left_shift_bytes <= 3 {
+                self_parts[3 - left_shift_bytes]
             } else {
                 0
             },
-            if left_shift_slots >= 1 {
-                self_parts[4 - left_shift_slots]
+            if left_shift_bytes >= 1 {
+                self_parts[4 - left_shift_bytes]
             } else {
                 0
             },
-            if left_shift_slots >= 2 {
-                self_parts[5 - left_shift_slots]
+            if left_shift_bytes >= 2 {
+                self_parts[5 - left_shift_bytes]
             } else {
                 0
             },
-            if left_shift_slots >= 3 {
-                self_parts[6 - left_shift_slots]
+            if left_shift_bytes >= 3 {
+                self_parts[6 - left_shift_bytes]
             } else {
                 0
             },
@@ -908,85 +908,85 @@ mod test {
     #[test]
     fn test_right_shift() {
         let mut x = Int32::from(0);
-        x.do_right_shift_slots(1);
+        x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 0);
 
         let mut x = Int32::from(1);
-        x.do_right_shift_slots(1);
+        x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 0);
 
         let mut x = Int32::from(-5);
-        x.do_right_shift_slots(1);
+        x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 0);
 
         let mut x = Int32::from(30000);
-        x.do_right_shift_slots(1);
+        x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 117);
 
         let mut x = Int32::from(-30000);
-        x.do_right_shift_slots(1);
+        x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), -117);
 
         let mut x = Int32::from(256);
         let y = x;
         x.do_mul(&y);
         x.do_mul(&y);
-        x.do_right_shift_slots(1);
+        x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 65536);
-        x.do_right_shift_slots(1);
+        x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 256);
-        x.do_right_shift_slots(1);
+        x.do_right_shift_bytes(1);
         assert_eq!(x.to_i32(), 1);
 
         let mut x = Int32::from(256);
         x.do_mul(&y);
         x.do_mul(&y);
-        x.do_right_shift_slots(2);
+        x.do_right_shift_bytes(2);
         assert_eq!(x.to_i32(), 256);
 
         let mut x = Int32::from(256);
         x.do_mul(&y);
         x.do_mul(&y);
-        x.do_right_shift_slots(3);
+        x.do_right_shift_bytes(3);
         assert_eq!(x.to_i32(), 1);
     }
 
     #[test]
     fn test_left_shift() {
         let mut x = Int32::from(0);
-        x.do_left_shift_slots(1);
+        x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 0);
 
         let mut x = Int32::from(1);
-        x.do_left_shift_slots(1);
+        x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 256);
 
         let mut x = Int32::from(-5);
-        x.do_left_shift_slots(1);
+        x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), -1280);
 
         let mut x = Int32::from(30000);
-        x.do_left_shift_slots(1);
+        x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 7680000);
 
         let mut x = Int32::from(-30000);
-        x.do_left_shift_slots(1);
+        x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), -7680000);
 
         let mut x = Int32::from(1);
-        x.do_left_shift_slots(1);
+        x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 256);
-        x.do_left_shift_slots(1);
+        x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 65536);
-        x.do_left_shift_slots(1);
+        x.do_left_shift_bytes(1);
         assert_eq!(x.to_i32(), 16777216);
 
         let mut x = Int32::from(1);
-        x.do_left_shift_slots(2);
+        x.do_left_shift_bytes(2);
         assert_eq!(x.to_i32(), 65536);
 
         let mut x = Int32::from(1);
-        x.do_left_shift_slots(3);
+        x.do_left_shift_bytes(3);
         assert_eq!(x.to_i32(), 16777216);
     }
 
