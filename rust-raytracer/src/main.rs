@@ -4,7 +4,6 @@ extern crate lazy_static;
 extern crate rstest;
 
 mod elements;
-mod f64;
 mod fixed;
 mod int32;
 mod lights;
@@ -21,11 +20,8 @@ use vector::Vec3;
 
 const DO_DITHERING: bool = true;
 
-pub type Number = f64::Number;
-use crate::f64::PI;
-
-// pub type Number = fixed::Number;
-// use crate::fixed::PI;
+pub type Number = fixed::Number;
+use crate::fixed::PI;
 
 #[derive(Debug)]
 pub struct Intersection<'a> {
@@ -181,11 +177,11 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
     });
 
     let mut dither_pixels = vec![];
-    dither_pixels.resize(scene.width.try_into().unwrap(), 0f64);
+    dither_pixels.resize(scene.width.try_into().unwrap(), 0i16);
 
     let mut next_dither_pixels = vec![];
-    next_dither_pixels.resize(scene.width.try_into().unwrap(), 0f64);
-    let mut adjacent_dither = 0f64;
+    next_dither_pixels.resize(scene.width.try_into().unwrap(), 0i16);
+    let mut adjacent_dither = 0i16;
 
     for y in 0..scene.height {
         let reverse_x = y % 2 == 1;
@@ -263,7 +259,7 @@ pub fn render(scene: &Scene) -> Vec<Vec<Number>> {
         std::mem::swap(&mut dither_pixels, &mut next_dither_pixels);
 
         for x in next_dither_pixels.iter_mut() {
-            *x = 0.0;
+            *x = 0;
         }
 
         eprint!(".");
