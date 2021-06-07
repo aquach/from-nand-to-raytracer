@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use std::fmt;
 
 lazy_static! {
-    static ref BYTES_FOR_FRAC: usize = 2;
+    static ref SLOTS_FOR_FRAC: usize = 2;
     static ref SCALE_FACTOR: Int32 = {
         let mut x = Int32::from(256);
         let y = x;
@@ -42,15 +42,15 @@ pub struct Number(Int32);
 
 impl Number {
     pub fn from(i: i16) -> Number {
-        assert!(SCALE_FACTOR.to_i32() == i32::pow(256, u32::try_from(*BYTES_FOR_FRAC).unwrap()));
+        assert!(SCALE_FACTOR.to_i32() == i32::pow(256, u32::try_from(*SLOTS_FOR_FRAC).unwrap()));
 
         let mut r = Int32::from(i);
-        r.do_left_shift_bytes(*BYTES_FOR_FRAC);
+        r.do_left_shift_slots(*SLOTS_FOR_FRAC);
         Number(r)
     }
 
     pub fn to_int32(mut self) -> Int32 {
-        self.0.do_right_shift_bytes(*BYTES_FOR_FRAC);
+        self.0.do_right_shift_slots(*SLOTS_FOR_FRAC);
         self.0
     }
 
@@ -96,7 +96,7 @@ impl Number {
             return;
         }
 
-        self.0.do_mul_right_shift_bytes(&other.0, *BYTES_FOR_FRAC);
+        self.0.do_mul_right_shift_slots(&other.0, *SLOTS_FOR_FRAC);
     }
 
     pub fn do_div(&mut self, other: &Number) {
@@ -105,7 +105,7 @@ impl Number {
             return;
         }
 
-        self.0.do_left_shift_bytes_div(*BYTES_FOR_FRAC, &other.0);
+        self.0.do_left_shift_slots_div(*SLOTS_FOR_FRAC, &other.0);
     }
 
     pub fn do_sqrt(&mut self) {

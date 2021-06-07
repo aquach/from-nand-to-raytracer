@@ -1,6 +1,6 @@
 class Number {
   field Int32 v;
-  static int BYTES_FOR_FRAC;
+  static int SLOTS_FOR_FRAC;
   static Int32 SCALE_FACTOR;
   static Int32 SCALE_FACTOR_SQRT_SQRT;
   static Int32 SCALE_FACTOR_SQRT_SQRT_SQRT_POW_3;
@@ -19,7 +19,7 @@ class Number {
     var Int32 t;
     var Int32 u;
 
-    let BYTES_FOR_FRAC = 2;
+    let SLOTS_FOR_FRAC = 2;
 
     let SCALE_FACTOR = Int32.new(256);
     do SCALE_FACTOR.do_mul(SCALE_FACTOR);
@@ -51,7 +51,7 @@ class Number {
     let allocs = allocs + 1;
 
     let v = Int32.new(i);
-    do v.do_left_shift_bytes(BYTES_FOR_FRAC);
+    do v.do_left_shift_slots(SLOTS_FOR_FRAC);
     return this;
   }
 
@@ -125,7 +125,7 @@ class Number {
       do v.do_zero();
       return;
     }
-    do v.do_mul_right_shift_bytes(other.getV(), BYTES_FOR_FRAC);
+    do v.do_mul_right_shift_slots(other.getV(), SLOTS_FOR_FRAC);
     return;
   }
 
@@ -134,7 +134,7 @@ class Number {
       do v.do_zero();
       return;
     }
-    do v.do_left_shift_bytes_div(BYTES_FOR_FRAC, other.getV());
+    do v.do_left_shift_slots_div(SLOTS_FOR_FRAC, other.getV());
     return;
   }
 
@@ -165,7 +165,7 @@ class Number {
 
   method Int32 to_int32() {
     let allocs = allocs - 1;
-    do v.do_right_shift_bytes(BYTES_FOR_FRAC);
+    do v.do_right_shift_slots(SLOTS_FOR_FRAC);
     do Memory.deAlloc(this);
     return v;
   }

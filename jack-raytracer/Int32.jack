@@ -363,14 +363,14 @@ class Int32 {
   }
 
   method void do_mul(Int32 other) {
-    do do_mul_right_shift_bytes(other, 0);
+    do do_mul_right_shift_slots(other, 0);
     return;
   }
 
-  method void do_right_shift_bytes(int bytes) {
+  method void do_right_shift_slots(int slots) {
     var boolean is_neg;
 
-    if ((bytes < 0) | (bytes = 0)) {
+    if ((slots < 0) | (slots = 0)) {
       return;
     }
 
@@ -379,14 +379,14 @@ class Int32 {
       do do_neg();
     }
 
-    let parts[0] = parts[bytes];
-    if (bytes < 3) {
-      let parts[1] = parts[bytes + 1];
+    let parts[0] = parts[slots];
+    if (slots < 3) {
+      let parts[1] = parts[slots + 1];
     } else {
       let parts[1] = 0;
     }
-    if (bytes < 2) {
-      let parts[2] = parts[bytes + 2];
+    if (slots < 2) {
+      let parts[2] = parts[slots + 2];
     } else {
       let parts[2] = 0;
     }
@@ -400,19 +400,19 @@ class Int32 {
     return;
   }
 
-  method void do_left_shift_bytes(int bytes) {
-    if ((bytes < 0) | (bytes = 0)) {
+  method void do_left_shift_slots(int slots) {
+    if ((slots < 0) | (slots = 0)) {
       return;
     }
 
-    let parts[3] = parts[3 - bytes];
-    if (bytes < 3) {
-      let parts[2] = parts[2 - bytes];
+    let parts[3] = parts[3 - slots];
+    if (slots < 3) {
+      let parts[2] = parts[2 - slots];
     } else {
       let parts[2] = 0;
     }
-    if (bytes < 2) {
-      let parts[1] = parts[1 - bytes];
+    if (slots < 2) {
+      let parts[1] = parts[1 - slots];
     } else {
       let parts[1] = 0;
     }
@@ -432,7 +432,7 @@ class Int32 {
   }
 
 
-  method void do_mul_right_shift_bytes(Int32 other, int right_shift_bytes) {
+  method void do_mul_right_shift_slots(Int32 other, int right_shift_slots) {
     var Array self_parts;
     var Array other_parts;
     var Int32 abs1;
@@ -443,7 +443,7 @@ class Int32 {
     var Array other_parts_expanded;
     var Array result;
 
-    var int right_shift_bytes_2;
+    var int right_shift_slots_2;
 
     let abs1 = null;
     let abs2 = null;
@@ -487,16 +487,16 @@ class Int32 {
 
     let result = Int32.u4_array_mul_u4_array(self_parts_expanded, other_parts_expanded);
 
-    let right_shift_bytes_2 = right_shift_bytes * 2;
+    let right_shift_slots_2 = right_shift_slots * 2;
 
     let parts[0] =
-      result[right_shift_bytes_2 + 0] + (result[right_shift_bytes_2 + 1] * 16);
+      result[right_shift_slots_2 + 0] + (result[right_shift_slots_2 + 1] * 16);
     let parts[1] =
-      result[right_shift_bytes_2 + 2] + (result[right_shift_bytes_2 + 3] * 16);
+      result[right_shift_slots_2 + 2] + (result[right_shift_slots_2 + 3] * 16);
     let parts[2] =
-      result[right_shift_bytes_2 + 4] + (result[right_shift_bytes_2 + 5] * 16);
+      result[right_shift_slots_2 + 4] + (result[right_shift_slots_2 + 5] * 16);
     let parts[3] =
-      result[right_shift_bytes_2 + 6] + (result[right_shift_bytes_2 + 7] * 16);
+      result[right_shift_slots_2 + 6] + (result[right_shift_slots_2 + 7] * 16);
 
     if (is_result_neg) {
       do do_neg();
@@ -518,11 +518,11 @@ class Int32 {
   }
 
   method void do_div(Int32 other) {
-    do do_left_shift_bytes_div(0, other);
+    do do_left_shift_slots_div(0, other);
     return;
   }
 
-  method void do_left_shift_bytes_div(int left_shift_bytes, Int32 other) {
+  method void do_left_shift_slots_div(int left_shift_slots, Int32 other) {
     var Array self_parts;
     var Array other_parts;
 
@@ -561,38 +561,38 @@ class Int32 {
     }
 
     let self_parts_shifted = Array.new(8);
-    if (left_shift_bytes = 0) {
-      let self_parts_shifted[0] = self_parts[0 - left_shift_bytes];
+    if (left_shift_slots = 0) {
+      let self_parts_shifted[0] = self_parts[0 - left_shift_slots];
     } else {
       let self_parts_shifted[0] = 0;
     }
-    if (left_shift_bytes < 2) {
-      let self_parts_shifted[1] = self_parts[1 - left_shift_bytes];
+    if (left_shift_slots < 2) {
+      let self_parts_shifted[1] = self_parts[1 - left_shift_slots];
     } else {
       let self_parts_shifted[1] = 0;
     }
-    if (left_shift_bytes < 3) {
-      let self_parts_shifted[2] = self_parts[2 - left_shift_bytes];
+    if (left_shift_slots < 3) {
+      let self_parts_shifted[2] = self_parts[2 - left_shift_slots];
     } else {
       let self_parts_shifted[2] = 0;
     }
-    if (left_shift_bytes < 4) {
-      let self_parts_shifted[3] = self_parts[3 - left_shift_bytes];
+    if (left_shift_slots < 4) {
+      let self_parts_shifted[3] = self_parts[3 - left_shift_slots];
     } else {
       let self_parts_shifted[3] = 0;
     }
-    if (left_shift_bytes > 0) {
-      let self_parts_shifted[4] = self_parts[4 - left_shift_bytes];
+    if (left_shift_slots > 0) {
+      let self_parts_shifted[4] = self_parts[4 - left_shift_slots];
     } else {
       let self_parts_shifted[4] = 0;
     }
-    if (left_shift_bytes > 1) {
-      let self_parts_shifted[5] = self_parts[5 - left_shift_bytes];
+    if (left_shift_slots > 1) {
+      let self_parts_shifted[5] = self_parts[5 - left_shift_slots];
     } else {
       let self_parts_shifted[5] = 0;
     }
-    if (left_shift_bytes > 2) {
-      let self_parts_shifted[6] = self_parts[6 - left_shift_bytes];
+    if (left_shift_slots > 2) {
+      let self_parts_shifted[6] = self_parts[6 - left_shift_slots];
     } else {
       let self_parts_shifted[6] = 0;
     }
